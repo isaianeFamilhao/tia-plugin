@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "origem": "F0, sessão T-001 no app desktop (sanitizada)",
+    "claude_code": "2.1.321",
+    "shell_do_hook": "Git Bash",
+    "branch": "claude/task-t-001-07f454"
+  },
+  "input": {
+    "session_id": "00000000-0000-4000-8000-0000000000f1",
+    "transcript_path": "C:\\Users\\usuario\\.claude\\projects\\C--dev-harness-f0--claude-worktrees-task-t-001-07f454\\00000000-0000-4000-8000-0000000000f1.jsonl",
+    "cwd": "C:\\dev\\harness-f0\\.claude\\worktrees\\task-t-001-07f454",
+    "scratchpad_dir": "C:\\Users\\usuario\\AppData\\Local\\Temp\\claude\\0000000000000000\\00000000-0000-4000-8000-0000000000f1\\scratchpad",
+    "hook_event_name": "SessionStart",
+    "source": "startup"
+  }
+}

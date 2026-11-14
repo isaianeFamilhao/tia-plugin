@@ -1,0 +1,9 @@
+{
+  "name": "ada",
+  "version": "0.1.0",
+  "description": "Ada, assistente de produto: épicos e histórias com critérios que cobrem as regras de negócio, Base de Conhecimento com fonte, gates humanos e monitoramento de métricas.",
+  "author": {
+    "name": "Time de Produto"
+  },
+  "keywords": ["produto", "pm", "epico", "historias", "okr", "metricas"]
+}
