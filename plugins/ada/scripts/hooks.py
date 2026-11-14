@@ -426,6 +426,9 @@ def prompt(data: dict) -> dict | None:
     if not skill:
         return None
     nome, arg = skill
+    if arg == aliases.ENCAMINHAR:
+        return context("UserPromptSubmit", f"{PREFIX} Chamado da Ada: invoque a skill ada:abrir e siga só a seção "
+                                           "\"Pedidos em linguagem natural\" (não rode a abertura).")
     extra = f" com o argumento `{arg}`" if arg else ""
     return context("UserPromptSubmit", f"{PREFIX} Chamado da Ada: invoque a skill ada:{nome}{extra} antes de responder.")
 

@@ -1,12 +1,12 @@
 ---
-name: ada-okr
-description: Cria, revisa ou desdobra OKRs com pragmatismo — calibra pelo momento e maturidade do time, objetivo qualitativo, 2–4 KRs "de X para Y", adaptações quando o clássico não encaixa (KR de baseline, de aprendizado, de marco técnico, comprometido ou aspiracional), tensão saudável, checagem de dados e iniciativas separadas dos KRs. Use quando a PM digitar /ada-okr ou pedir "fechar os OKRs", "revisar esse OKR", "desdobrar o OKR da empresa para o time".
+name: okr
+description: Cria, revisa ou desdobra OKRs com pragmatismo — calibra pelo momento e maturidade do time, objetivo qualitativo, 2–4 KRs "de X para Y", adaptações quando o clássico não encaixa (KR de baseline, de aprendizado, de marco técnico, comprometido ou aspiracional), tensão saudável, checagem de dados e iniciativas separadas dos KRs. Use quando a PM digitar /ada:okr ou pedir "fechar os OKRs", "revisar esse OKR", "desdobrar o OKR da empresa para o time".
 ---
 
-# /ada-okr $ARGUMENTS
+# /ada:okr $ARGUMENTS
 
 Método de estratégia para OKRs claros e mensuráveis, sem dogma. Fale como a Ada (`CLAUDE.md`): curta,
-direta, sem emojis. Boa prática existe para dar clareza, não burocracia. `PY` = `.venv/Scripts/python.exe`.
+direta, sem emojis. Boa prática existe para dar clareza, não burocracia. `ADA` = `bash "${CLAUDE_PLUGIN_ROOT}/scripts/ada.sh"`.
 
 ## Postura
 - **Pragmatismo antes de dogma.** Descoberta, produto novo ou fundação técnica não pedem KR financeiro
@@ -17,7 +17,7 @@ direta, sem emojis. Boa prática existe para dar clareza, não burocracia. `PY` 
 
 ## Etapas
 
-1. **Calibragem.** Busque na Memória, em `kb/okrs.yaml` (OKR superior ou anterior), no Confluence e no
+1. **Calibragem.** Busque na Memória, em `ada/kb/okrs.yaml` (OKR superior ou anterior), no Confluence e no
    roadmap: horizonte, momento do time (crescimento, retenção, descoberta, eficiência, fundação) e objetivo
    superior. O que faltar: até 3 perguntas curtas, de uma vez. Pergunte também, se a Memória não souber:
    comprometido (100% esperado) ou aspiracional (70% já é sucesso)?
@@ -30,7 +30,7 @@ direta, sem emojis. Boa prática existe para dar clareza, não burocracia. `PY` 
    - fundação ou infraestrutura → KR de **marco técnico** com valor mensurável (p95 de 800 ms para < 200 ms);
    - comprometido ou aspiracional → calibre a ambição dos números.
 4. **Saúde e dados.** Tensão saudável: ao menos um guardrail (qualidade, margem, suporte) contra crescimento
-   destrutivo. Para cada KR de outcome ou guardrail, aplique a checagem da `/ada-metricas` (fórmula,
+   destrutivo. Para cada KR de outcome ou guardrail, aplique a checagem da `/ada:metricas` (fórmula,
    mensurável hoje / sem acesso / ponto cego / manual) e puxe o baseline se a fonte estiver conectada.
 5. **Iniciativas.** Tudo que é projeto, feature ou tarefa sai dos KRs e vai para **Iniciativas**, como meio
    para mover os KRs e que pode mudar no ciclo.
@@ -38,7 +38,7 @@ direta, sem emojis. Boa prática existe para dar clareza, não burocracia. `PY` 
 Foco: mais de 3 objetivos ou fora de 2 a 4 KRs por objetivo → diga em uma linha e sugira priorizar.
 
 ## Registro e avaliador
-Rascunho em `.harness/propostas/okrs-<ciclo>-<time>.yaml`:
+Rascunho em `ada/propostas/okrs-<ciclo>-<time>.yaml`:
 
 ```yaml
 - ciclo: 2026-Q3
@@ -62,7 +62,7 @@ Rascunho em `.harness/propostas/okrs-<ciclo>-<time>.yaml`:
       iniciativas: [<meio 1>, <meio 2>]
 ```
 
-Rode `PY .harness/bin/okr.py validar <arquivo>`. **REPROVADO → corrija e rode de novo.** Avisos: resolva ou
+Rode `ADA okr validar <arquivo>`. **REPROVADO → corrija e rode de novo.** Avisos: resolva ou
 justifique em uma linha — aviso é conversa, não bloqueio.
 
 ## Resposta à PM (curta)
@@ -70,6 +70,6 @@ justifique em uma linha — aviso é conversa, não bloqueio.
 2. Alinhamento → objetivo → KRs (com tipo, baseline, meta e dados) → iniciativas.
 3. Uma pergunta só: aprovar, ajustar a ambição ou trocar uma adaptação.
 
-Com "aprovar": copie para `kb/okrs.yaml` com `status: ativo` e rode `PY .harness/bin/okr.py validar`.
-Depois ofereça monitorar os KRs mensuráveis hoje (M1, via `/ada`). Preferência que se repete (modo, tom dos
-objetivos, cadência de check-in) → proponha guardar na Memória. Os OKRs ativos alimentam o `/ada-report semanal`.
+Com "aprovar": copie para `ada/kb/okrs.yaml` com `status: ativo` e rode `ADA okr validar`.
+Depois ofereça monitorar os KRs mensuráveis hoje (M1, via `/ada:abrir`). Preferência que se repete (modo, tom dos
+objetivos, cadência de check-in) → proponha guardar na Memória. Os OKRs ativos alimentam o `/ada:report semanal`.
