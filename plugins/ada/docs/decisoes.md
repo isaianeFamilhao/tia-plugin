@@ -36,12 +36,20 @@
   (CLI 2.1.322, `--plugin-dir`).
 - **D-PM-23** Proteções: escrita do agente só em `ada/**` (md/yaml/yml/json), exceto `ada/demandas.yaml` e
   `ada/kb/README.md`; `ada/kb/**` pede K1, `ada/memoria/**` pede o gate Memória. Negados: `.ada/**` direto,
-  `CLAUDE.md`, `.claude/`, cache e dados do plugin, e desligar a fiscalização (`claude plugin
-  disable|uninstall|remove`, `enabledPlugins`, `disableAllHooks`, `HARNESS_DEV`, `ADA_DEV`, `hook.sh`,
-  `hooks.json`). Manutenção do plugin: `ADA_DEV=1` no terminal de quem abre o Claude Code.
+  `CLAUDE.md`, `.claude/`, cache e dados do plugin, e desligar a fiscalização (detalhado em D-PM-26).
+  Manutenção do plugin: `ADA_DEV=1` no ambiente de quem abre o Claude Code (no app: `setx ADA_DEV 1` e reabrir).
 - **D-PM-24** Generalização para outros times: fontes `SRC-<2 a 4 letras>-NNN`; prefixos de domínio na
   `ada/kb/prefixos.md` do time; `epicos.md` em qualquer área da Base; seções do épico no frontmatter
   `secoes_epico` do padrão do workspace (o `kb.py validar` acusa divergência com o config).
 - **D-PM-25** `/ada:configurar` só cria o que não existe; propõe site, projeto e espaços pelo conector Atlassian;
   aceita um único espaço `manter`. `atualizar` mostra diff por `modelo_versao` e troca com backup; config e
   `CLAUDE.md` têm dados do time e nunca são trocados por script.
+- **D-PM-26** (0.1.1) O shell é conferido pelo que o comando faz, não pelos nomes que cita. Mensagens de commit
+  (`-m`, `-F`, heredoc) saem antes de qualquer regra; operadores de gravação são procurados no texto sem aspas,
+  exceto aspas que são código (`bash -c`, `python -c`, `powershell -Command`, `eval`); caminhos protegidos, no
+  texto com aspas. Desligar a fiscalização = desativar o plugin, `claude config set` de `disableAllHooks` ou
+  `enabledPlugins`, definir `ADA_DEV`/`HARNESS_DEV` ou gravar em hooks e settings; ler ou citar passa. Sem venv,
+  o fail-closed vale só para escrita (ferramentas, Jira/Confluence e shell que não seja leitura simples); o resto
+  passa para a sessão não travar. A lista de escrita no Atlassian do `hook.sh` é a mesma do inegociável
+  (teste confere). Mensagens trazem o comando do Git Bash e do PowerShell. `git add` segue nas permissões normais
+  do Claude Code (não pede confirmação extra da Ada); `git commit` continua pedindo.

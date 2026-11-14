@@ -189,6 +189,7 @@ def proj(tmp_path, monkeypatch) -> Path:
     monkeypatch.setenv("HARNESS_ROOT", str(tmp_path))
     monkeypatch.setenv("ADA_HOME", str(tmp_path / "home-ada"))      # nunca toca o ~/.ada real
     monkeypatch.delenv("HARNESS_DEV", raising=False)
+    monkeypatch.delenv("ADA_DEV", raising=False)          # manutenção ligada na máquina não vale nos testes
     return tmp_path
 
 

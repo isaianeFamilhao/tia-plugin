@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Marketplace interno da Ada, assistente de produto.",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "plugins": [
     {
       "name": "ada",
       "source": "./plugins/ada",
       "description": "Ada: transforma pedidos em épicos e histórias com critérios que cobrem as regras de negócio e acompanha nos dados se a entrega moveu as métricas.",
-      "version": "0.1.0"
+      "version": "0.1.1"
     }
   ]
 }

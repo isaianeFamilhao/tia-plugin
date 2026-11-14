@@ -9,7 +9,8 @@ Política (README do plugin, "Proteções"):
   uma está ativa; ada/kb/** pede confirmação (K1); ada/memoria/** pede confirmação (gate Memória);
   escrita no Jira/Confluence negada sem G3 (e com G3 pede confirmação a cada chamada); Confluence por espaço;
   fontes de dados só leitura; shell: nega gravar em .ada/, CLAUDE.md e settings e nega desligar a fiscalização
-  (claude plugin disable|uninstall, enabledPlugins, disableAllHooks, HARNESS_DEV); pergunta o que é perigoso.
+  (claude plugin disable|uninstall, definir ADA_DEV/HARNESS_DEV, gravar em hooks e settings); ler ou citar
+  esses nomes passa, e mensagens de commit (-m/-F) e texto entre aspas não contam; pergunta o que é perigoso.
 - UserPromptSubmit: "Ada, <verbo>" no início vira "invoque a skill ada:<skill>" (aliases.py).
 - PostToolUse: métricas da sessão e da demanda ativa; marca Base de Conhecimento alterada.
 - Stop: com demanda ativa nesta sessão, só encerra com entrega aprovada pela cobertura (ou `blocked` com motivo);
@@ -45,10 +46,39 @@ ENV_PREFIX_RE = re.compile(r"^(?:[A-Z_][A-Z0-9_]*=\S*\s+)+")          # VAR=valo
 PS_ENV_RE = re.compile(r"(?i)^\$env:PYTHON[A-Z]*\s*=\s*\S+$")         # $env:PYTHONIOENCODING='utf-8'
 # Lançador da Ada: `bash "<plugin>/scripts/ada.sh" <script> ...` (aspas opcionais; `&` do PowerShell aceito).
 LAUNCH_RE = re.compile(r"""(?i)(?:bash(?:\.exe)?\s+)?(?:"(?P<q>[^"]*?ada\.sh)"|'(?P<s>[^']*?ada\.sh)'|(?P<p>[^"'\s]*?ada\.sh))(?=\s|$)""")
-# Desligar a fiscalização: só a humana, fora da sessão.
-DISABLE_RE = re.compile(
-    r"(?i)\bclaude(?:\.exe)?\s+plugins?\s+(?:disable|uninstall|remove|rm)\b|enabledPlugins|disableAllHooks"
-    r"|HARNESS_DEV|ADA_DEV|manutencao\.py|\.claude[/\\]settings|hook\.sh|hooks\.json")
+# Desligar a fiscalização: só a humana, fora da sessão. Só o que desliga (ler esses arquivos ou citar os nomes passa).
+# Comandos que desligam o plugin ou os hooks, ou gravam a variável de manutenção no ambiente do usuário.
+DISABLE_CMD_RE = re.compile(
+    r"(?i)\bclaude(?:\.exe)?\s+plugins?\s+(?:disable|uninstall|remove|rm)\b"
+    r"|\bclaude(?:\.exe)?\s+config\s+(?:set|add)\b.*\b(?:disableAllHooks|enabledPlugins)\b"
+    r"|\bsetx\s+(?:/m\s+)?(?:ADA|HARNESS)_DEV\b|SetEnvironmentVariable\s*\(\s*['\"]?(?:ADA|HARNESS)_DEV\b"
+    r"|\breg(?:\.exe)?\s+add\b.*\b(?:ADA|HARNESS)_DEV\b")
+# Definir a variável de manutenção na sessão (export, set, $env:, VAR=). Conferido no texto sem aspas.
+DEV_ASSIGN_RE = re.compile(r"(?i)(?:^|[\s;&|(])(?:export\s+|set\s+|\$env:)?(?:ADA|HARNESS)_DEV\s*=")
+# Arquivos que ligam a fiscalização: gravar neles pelo shell é negado (somado a PROTECTED_PATH_RE).
+HOOK_FILES_RE = re.compile(r"(?i)\bhooks?\.(?:sh|json|py)\b|\bsettings(?:\.local)?\.json\b")
+# Texto livre que não é comando: argumentos de -m/-F/--message/--file e corpo de heredoc.
+MSG_ARG_RE = re.compile(r"""(?:^|(?<=\s))(?:-[A-Za-z]*[mF]|--message|--file)(?:\s+|=)"""
+                        r"""(?:"(?:[^"\\]|\\.)*"|'[^']*'|\S+)""")
+HEREDOC_RE = re.compile(r"""<<-?\s*(['"]?)(\w+)\1[^\n]*\n.*?\n\s*\2[ \t]*(?=\n|$)""", re.S)
+QUOTED_RE = re.compile(r"""@'.*?'@|@".*?"@|"(?:[^"\\]|\\.)*"|'[^']*'""", re.S)
+
+
+def sem_mensagem(cmd: str) -> str:
+    """Tira mensagens de commit/tag (-m, -F) e corpos de heredoc: são texto, não comando."""
+    return MSG_ARG_RE.sub(" MSG", HEREDOC_RE.sub("<<MSG", cmd))
+
+
+# Aspas logo depois disto são código (bash -c, python -c, powershell -Command, eval…): o conteúdo fica.
+CODIGO_ANTES_RE = re.compile(r"(?i)(?:\s-c|\s-Command|\s/c|\s-e|\beval|\bInvoke-Expression|\biex)\s*$")
+
+
+def sem_aspas(cmd: str) -> str:
+    """Tira o conteúdo entre aspas (e here-strings do PowerShell): `->` numa string não é redirecionamento.
+    Exceção: aspas que são código de outro interpretador (`bash -c "…"`, `python -c "…"`) continuam."""
+    def rep(m: re.Match) -> str:
+        return m.group(0) if CODIGO_ANTES_RE.search(cmd[:m.start()]) else '""'
+    return QUOTED_RE.sub(rep, cmd)
 
 
 # Política de shell = lista do que é PERIGOSO (o resto fica com as permissões do Claude Code).
@@ -251,16 +281,21 @@ def pretool(data: dict) -> dict | None:
         return pre("ask", f"publicação de {', '.join(ok)} no Jira/Confluence ({tool}): confirme esta escrita.")
     if tool in SHELL_TOOLS:
         cmd = str(ti.get("command") or "")
-        alvo = strip_launcher(cmd)
-        if "ledger.json" in alvo:
-            return pre("deny", "o ledger só muda pelo script `ledger` (ada.sh ledger …)")
-        if DISABLE_RE.search(alvo):
-            return pre("deny", "desligar ou contornar a fiscalização da Ada (desativar o plugin, hooks, settings, "
-                               "HARNESS_DEV) é decisão só da humana, no terminal dela.")
-        # Executar um script da Ada não é gravar em .ada/: o lançador já saiu de `alvo`.
-        if SHELL_WRITE_RE.search(alvo) and PROTECTED_PATH_RE.search(alvo):
-            return pre("deny", "o shell não grava em .ada/, na fila, no contrato da Base, em CLAUDE.md, em settings "
-                               "nem nos arquivos do plugin. Use os scripts da Ada ou proponha a mudança à humana.")
+        texto = sem_mensagem(strip_launcher(cmd))   # caminhos e argumentos (aspas mantidas, mensagens fora)
+        ops = sem_aspas(texto)                       # operadores e palavras de comando
+        if DISABLE_CMD_RE.search(texto) or DEV_ASSIGN_RE.search(ops):
+            return pre("deny", "desligar ou contornar a fiscalização da Ada (desativar o plugin ou os hooks, "
+                               "definir ADA_DEV/HARNESS_DEV) é decisão só da humana, no terminal dela.")
+        # Executar um script da Ada não é gravar em .ada/: o lançador já saiu de `texto`.
+        if SHELL_WRITE_RE.search(ops):
+            if "ledger.json" in texto:
+                return pre("deny", "o ledger só muda pelo script `ledger` (ada.sh ledger …)")
+            if PROTECTED_PATH_RE.search(texto):
+                return pre("deny", "o shell não grava em .ada/, na fila, no contrato da Base, em CLAUDE.md, em settings "
+                                   "nem nos arquivos do plugin. Use os scripts da Ada ou proponha a mudança à humana.")
+            if HOOK_FILES_RE.search(texto):
+                return pre("deny", "gravar nos hooks ou nos settings pelo shell desliga a fiscalização da Ada: "
+                                   "decisão só da humana, no terminal dela.")
         risky = next((why for rx, why in SHELL_RISKY if rx.search(cmd)), None)
         if risky:
             return pre("ask", f"{risky}: confirme este comando.")

@@ -131,17 +131,65 @@ def test_resto_fica_com_o_claude_code(proj, cmd):
 def test_shell(proj):
     assert decision(hooks.run("pretool", {"tool_name": "Bash",
                                           "tool_input": {"command": "echo {} > .ada/ledger.json"}})) == "deny"
-    assert sh("cat .ada/ledger.json") == "deny"
+    assert sh("cp x .ada/ledger.json") == "deny"
+    assert sh("cat .ada/ledger.json") != "deny"          # ler o ledger não é mudar
     assert sh(LAUNCH + " ledger status --json") == "allow"
 
 
 def test_agente_nao_desliga_fiscalizacao(proj):
-    for cmd in ('claude plugin disable ada@ada-marketplace', 'claude plugin uninstall ada',
-                'claude plugins remove ada', 'cat .claude/settings.json',
-                'echo {"disableAllHooks": true} > x.json', 'echo enabledPlugins',
-                '$env:HARNESS_DEV="1"', 'export ADA_DEV=1', 'cat ~/.claude/plugins/cache/x/hooks/hooks.json',
-                'bash scripts/hook.sh pretool'):
-        assert decision(hooks.run("pretool", {"tool_name": "PowerShell", "tool_input": {"command": cmd}})) == "deny", cmd
+    for cmd in ('claude plugin disable ada@ada-marketplace', 'claude plugin disable ada', 'claude plugin uninstall ada',
+                'claude plugins remove ada', 'claude config set disableAllHooks true',
+                '$env:HARNESS_DEV="1"', 'export ADA_DEV=1', 'ADA_DEV=1 claude', 'set ADA_DEV=1', 'setx ADA_DEV 1',
+                "[Environment]::SetEnvironmentVariable('ADA_DEV','1','User')",
+                'reg add HKCU\\Environment /v ADA_DEV /d 1',
+                'echo {"disableAllHooks": true} > ~/.claude/settings.json',
+                "sed -i 's/hook/x/' ~/.claude/plugins/marketplaces/m/plugins/ada/hooks/hooks.json",
+                'echo exit 0 > scripts/hook.sh'):
+        for tool in ("Bash", "PowerShell"):
+            assert sh(cmd, tool) == "deny", (tool, cmd)
+
+
+# Regressão 0.1.1: casos reais que eram negados sem motivo.
+@pytest.mark.parametrize("cmd", [
+    'grep -n "hooks" hook.sh hooks.py',
+    "git check-ignore .ada/ledger.json",
+    "cat .claude/settings.json",
+    "cat ~/.claude/plugins/cache/x/hooks/hooks.json",
+    "git diff -- plugins/ada/scripts/hook.sh plugins/ada/hooks/hooks.json",
+    "echo enabledPlugins",
+    'echo "ADA_DEV=$ADA_DEV"',
+    "printenv | grep -i '^ada'",
+])
+def test_leitura_e_citacao_passam(proj, cmd):
+    assert sh(cmd) != "deny", cmd
+
+
+@pytest.mark.parametrize("cmd", [
+    'git commit -m "kb/ -> ada/kb/; ada/demandas.yaml"',
+    'git commit -m "Move .ada/ledger.json e CLAUDE.md; hooks.json -> novo"',
+    "git commit -am 'a -> b em .ada/config.yaml'",
+    "git commit -F - <<'EOF'\nkb/ -> ada/kb/\n.ada/ledger.json; CLAUDE.md\nEOF",
+    'git tag -m "ADA_DEV=1 -> ok" v1',
+])
+def test_commit_do_workspace_pergunta(proj, cmd):
+    assert sh(cmd) == "ask", cmd
+
+
+def test_git_add_nao_e_negado(proj):
+    assert sh("git add ada/kb .ada/config.yaml CLAUDE.md") != "deny"
+
+
+@pytest.mark.parametrize("cmd", [
+    'echo "x" > ".ada/config.yaml"',
+    "cat > .ada/config.yaml <<'EOF'\nx: 1\nEOF",
+    'git commit -m "ok" && echo x > .ada/ledger.json',
+    "Set-Content -Path '.ada/config.yaml' -Value 'x'",
+    'bash -c "echo x > .ada/config.yaml"',
+    "powershell -Command \"'x' | Out-File .ada/config.yaml\"",
+    "bash -c 'export ADA_DEV=1; claude'",
+])
+def test_aspas_e_mensagem_nao_escondem_gravacao(proj, cmd):
+    assert sh(cmd) == "deny", cmd
 
 
 def test_stop_exige_entrega_da_propria_sessao(proj):
@@ -234,11 +282,66 @@ def test_wrapper_sem_venv_nega_so_dentro(proj, tmp_path):
     env = {"CLAUDE_PROJECT_DIR": str(proj), "CLAUDE_PLUGIN_DATA": str(tmp_path / "sem-venv")}
     w = bash_hook("pretool", {"tool_name": "Write", "tool_input": {"file_path": "ada/x.md"}}, env)
     assert '"permissionDecision":"deny"' in w.stdout and "ambiente Python" in w.stdout
-    assert '"permissionDecision":"deny"' in bash_hook("pretool", {"tool_name": "Bash", "tool_input": {"command": "ls"}}, env).stdout
     assert bash_hook("pretool", {"tool_name": "Read", "tool_input": {"file_path": "x"}}, env).stdout == ""
     doc = bash_hook("pretool", {"tool_name": "Bash", "tool_input": {"command": 'bash "/p/scripts/ada.sh" doctor'}}, env)
     assert doc.stdout == ""
     assert (proj / ".ada" / "cache" / "plugin-data").read_text(encoding="utf-8").strip() == str(tmp_path / "sem-venv")
+
+
+def sem_venv(proj, tmp_path, tool, ti=None):
+    env = {"CLAUDE_PROJECT_DIR": str(proj), "CLAUDE_PLUGIN_DATA": str(tmp_path / "sem-venv")}
+    out = bash_hook("pretool", {"tool_name": tool, "tool_input": ti or {}}, env).stdout
+    if not out:
+        return None
+    hs = json.loads(out)["hookSpecificOutput"]                    # JSON válido mesmo com caminhos do Windows
+    return hs["permissionDecision"], hs["permissionDecisionReason"]
+
+
+@pytest.mark.skipif(not HAS_BASH, reason="sem bash")
+@pytest.mark.parametrize("tool", ["mcp__ccd_turn__wrap_up", "mcp__ccd_turn__update_plan", "Agent", "SendMessage",
+                                  "mcp__ccd_session__start_session", "mcp__x__getJiraIssue", "TaskStop"])
+def test_wrapper_sem_venv_ferramentas_do_app_passam(proj, tmp_path, tool):
+    assert sem_venv(proj, tmp_path, tool) is None, tool
+
+
+@pytest.mark.skipif(not HAS_BASH, reason="sem bash")
+@pytest.mark.parametrize("cmd", ["ls", "git status", "git check-ignore .ada/ledger.json", 'grep -n "hooks" hook.sh',
+                                 "cat a.md | head -5", "Get-Content x.md"])
+def test_wrapper_sem_venv_leitura_simples_passa(proj, tmp_path, cmd):
+    for tool in ("Bash", "PowerShell"):
+        assert sem_venv(proj, tmp_path, tool, {"command": cmd}) is None, (tool, cmd)
+
+
+@pytest.mark.skipif(not HAS_BASH, reason="sem bash")
+@pytest.mark.parametrize("tool,ti", [
+    ("Write", {"file_path": "ada/x.md"}), ("Edit", {"file_path": "ada/x.md"}), ("NotebookEdit", {"notebook_path": "x"}),
+    ("Bash", {"command": "echo x > .ada/config.yaml"}), ("Bash", {"command": "python x.py"}),
+    ("Bash", {"command": "ls; rm -rf ada"}), ("Bash", {"command": "cat x & rm -rf ada"}),
+    ("Bash", {"command": "echo $(rm -rf ada)"}), ("Bash", {"command": "git log\nrm -rf ada"}),
+    ("Bash", {"command": "claude plugin disable ada"}), ("Bash", {"command": "export ADA_DEV=1"}),
+    ("PowerShell", {"command": "Remove-Item ada -Recurse"}), ("Bash", {"command": ""}),
+    ("mcp__x__createJiraIssue", {}), ("mcp__x__updateConfluencePage", {}),
+])
+def test_wrapper_sem_venv_continua_negando(proj, tmp_path, tool, ti):
+    r = sem_venv(proj, tmp_path, tool, ti)
+    assert r and r[0] == "deny", (tool, ti)
+    assert "ada.sh" in r[1] and "bootstrap" in r[1]
+
+
+@pytest.mark.skipif(not HAS_BASH or not shutil.which("cygpath"), reason="só no Git Bash do Windows")
+def test_wrapper_mensagem_com_comando_do_powershell(proj, tmp_path):
+    _, msg = sem_venv(proj, tmp_path, "Write", {"file_path": "ada/x.md"})
+    assert "no Git Bash: bash \"" in msg and "no PowerShell: & \"" in msg
+    assert "\\bin\\bash.exe\"" in msg and "\\scripts\\ada.sh\" bootstrap" in msg
+
+
+def test_wrapper_lista_atlassian_igual_ao_inegociavel():
+    import re
+    import yaml
+    sh_txt = (BIN / "hook.sh").read_text(encoding="utf-8")
+    no_sh = re.search(r"^ATLASSIAN_ESCRITA='([^']*)'", sh_txt, re.M).group(1)
+    cfg = yaml.safe_load((BIN.parent / "modelos" / "config.padrao.yaml").read_text(encoding="utf-8"))
+    assert cfg["atlassian"]["ferramentas_escrita_regex"] == "(?i)" + no_sh
 
 
 @pytest.mark.skipif(not HAS_BASH, reason="sem bash")

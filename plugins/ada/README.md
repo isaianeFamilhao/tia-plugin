@@ -86,9 +86,11 @@ G3 publicar no Jira · C1 alterar página do espaço do time · M1 ativar monito
 ## Proteções
 
 Escrita do agente só em `ada/**` (md, yaml, yml, json), exceto `ada/demandas.yaml` e o contrato da Base. Negados:
-escrever em `.ada/**` (só scripts), `CLAUDE.md`, settings, cache e dados do plugin, e qualquer comando que desligue a
-fiscalização (`claude plugin disable|uninstall`, `enabledPlugins`, `disableAllHooks`, `HARNESS_DEV`). Jira só
-leitura até o G3; fontes de dados só leitura. Fail-closed: dentro do workspace, hook com erro nega a ação.
+escrever em `.ada/**` (só scripts), `CLAUDE.md`, settings, hooks, cache e dados do plugin, e o que desliga a
+fiscalização (`claude plugin disable|uninstall|remove`, definir `ADA_DEV`/`HARNESS_DEV`). Ler esses arquivos ou citar
+os nomes passa; mensagem de commit (`-m`/`-F`) e texto entre aspas não contam como comando. Jira só leitura até o
+G3; fontes de dados só leitura. Fail-closed: dentro do workspace, hook com erro nega a ação. Sem o ambiente Python,
+só a escrita e o shell que não seja leitura ficam negados; leitura e ferramentas do app passam.
 
 ## Atualizar
 
@@ -114,11 +116,23 @@ O conteúdo do projeto (`ada/`, `.ada/`) e o `~/.ada/` continuam seus. Sem o plu
 
 ## Problemas
 
-Rode o diagnóstico: `/ada:abrir` já roda; manualmente, `bash "<plugin>/scripts/ada.sh" doctor`.
+Rode o diagnóstico: `/ada:abrir` já roda; manualmente, no Git Bash:
+
+```bash
+bash "<plugin>/scripts/ada.sh" doctor
+```
+
+No PowerShell, `bash` pode não existir (ou ser o do WSL); chame o do Git:
+
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" "<plugin>\scripts\ada.sh" doctor
+```
+
+As mensagens de erro da Ada já trazem os dois comandos prontos, com o caminho do plugin.
 
 | Sintoma | O que fazer |
 |---|---|
-| "ambiente Python da Ada ainda não existe" | `bash "<plugin>/scripts/ada.sh" bootstrap` ou abra uma sessão nova |
+| "ambiente Python da Ada ainda não existe" | `ada.sh bootstrap` (comando pronto na mensagem) ou abra uma sessão nova |
 | Bloqueio de rede/proxy no bootstrap | Peça ao suporte para liberar pypi.org e files.pythonhosted.org ou configurar `HTTPS_PROXY` |
 | "Git Bash não encontrado" | Instale o Git for Windows e abra o Claude Code de novo |
 | Modelos desatualizados | "Ada, atualiza a configuração" |

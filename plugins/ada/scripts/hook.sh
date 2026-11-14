@@ -7,11 +7,12 @@
 # 1. Sem `.ada/config.yaml` em $CLAUDE_PROJECT_DIR (ou no cwd): não é workspace da Ada → sai em silêncio
 #    (exit 0, sem saída), mesmo sem venv. Exceção: prompt que começa com "Ada," → injeta o convite para
 #    configurar (ou a skill ada:configurar, se o pedido for esse).
-# 2. Dentro do workspace, sem o venv do plugin: SessionStart cria o venv (bootstrap.sh); PreToolUse nega
-#    escrita e shell (exceto o doctor) até o venv existir. Fail-closed só dentro do workspace.
+# 2. Dentro do workspace, sem o venv do plugin: SessionStart cria o venv (bootstrap.sh); PreToolUse nega só
+#    as ferramentas de escrita, a escrita no Jira/Confluence e o shell que não seja leitura simples ou
+#    ada.sh doctor/configurar/bootstrap. O resto (leitura, ferramentas do app, agentes) passa.
 # 3. Com venv: chama hooks.py com tempo máximo. Python falhou → nega (PreToolUse) ou avisa (SessionStart).
 # HARNESS_DEV=1 / ADA_DEV=1 no ambiente de quem abriu o Claude Code (manutenção do plugin) desliga o fail-closed.
-# Só usa bash, grep, sed, head, tr e (se houver) timeout.
+# Só usa bash, grep, sed, head, tr, cygpath (se houver) e timeout (se houver).
 
 event="${1:-}"
 py="${2:-}"
@@ -22,15 +23,33 @@ input="$(cat)"
 dev=""
 if [ "${HARNESS_DEV:-}" = "1" ] || [ "${ADA_DEV:-}" = "1" ]; then dev=1; fi
 
-ctx() {  # $1 = evento, $2 = texto (sem aspas duplas nem barras invertidas)
-  printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}' "$1" "$2"
+json_str() {  # texto → conteúdo de string JSON (barras invertidas e aspas escapadas, sem quebras)
+  printf '%s' "$1" | tr '\r\n\t' '   ' | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+ctx() {  # $1 = evento, $2 = texto
+  printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}' "$1" "$(json_str "$2")"
 }
 deny() {
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}' "[ada] $1"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}' "$(json_str "[ada] $1")"
 }
 prompt_text() {  # campo "prompt" do JSON (o início basta para reconhecer o chamado)
   printf '%s' "$input" | tr '\r\n' '  ' | grep -o '"prompt"[[:space:]]*:[[:space:]]*"[^"]*' | head -n 1 \
     | sed 's/^"prompt"[[:space:]]*:[[:space:]]*"//'
+}
+como_rodar() {  # $1 = subcomando do ada.sh → comando pronto no Git Bash e, no Windows, no PowerShell
+  sh="$here/ada.sh"
+  if command -v cygpath >/dev/null 2>&1; then
+    # bin\bash.exe do Git (não usr\bin): é o que monta o PATH com sed, grep e cksum quando chamado do PowerShell.
+    wbash=""
+    gitroot="$(cygpath -m / 2>/dev/null)"
+    for cand in "${gitroot%/}/bin/bash.exe" "C:/Program Files/Git/bin/bash.exe"; do
+      if [ -f "$cand" ]; then wbash="$(cygpath -w "$cand" 2>/dev/null)"; break; fi
+    done
+    [ -n "$wbash" ] || wbash='C:\Program Files\Git\bin\bash.exe'
+    printf 'no Git Bash: bash "%s" %s; no PowerShell: & "%s" "%s" %s' "$sh" "$1" "$wbash" "$(cygpath -w "$sh")" "$1"
+  else
+    printf 'bash "%s" %s' "$sh" "$1"
+  fi
 }
 
 # ---------------------------------------------------------------- 1. marcador
@@ -71,12 +90,28 @@ if [ -z "$py" ] && [ -n "$data" ]; then
   fi
 fi
 
+# Shell sem venv: passa só o lançador (doctor, configurar, bootstrap) e a leitura simples.
+LEITURA='^(ls|dir|pwd|cd|cat|type|head|tail|wc|sort|uniq|echo|printf|grep|rg|findstr|which|where|printenv|git[[:space:]]+(status|log|diff|show|ls-files|branch|check-ignore|rev-parse)|Get-ChildItem|Get-Content|Get-Location|Set-Location|Select-String|Select-Object|Sort-Object|Measure-Object|Write-Output|Test-Path)([[:space:]]|$)'
+# Mesma lista do inegociável atlassian.ferramentas_escrita_regex (modelos/config.padrao.yaml; o teste confere).
+ATLASSIAN_ESCRITA='__(create|edit|update|transition|add|delete)[A-Za-z]*(Jira|Confluence|Issue|Page|Comment|Worklog|Compass|Link)'
+comando() {  # campo "command" do JSON, com \n como separador e \" como aspas
+  printf '%s' "$input" | tr '\r\n' '  ' | grep -oE '"command"[[:space:]]*:[[:space:]]*"([^"\\]|\\.)*"' | head -n 1 \
+    | sed 's/^"command"[[:space:]]*:[[:space:]]*"//; s/"$//; s/\\n/;/g; s/\\"/"/g'
+}
+leitura_simples() {
+  c="$(comando)"
+  [ -n "$(printf '%s' "$c" | tr -d '[:space:];')" ] || return 1
+  c="$(printf '%s' "$c" | sed 's#2>&1##g; s#2>[[:space:]]*/dev/null##g; s#2>[[:space:]]*\$null##g; s/&&/;/g; s/||/;/g')"
+  case "$c" in *'`'*|*'$('*|*'>'*|*'&'*) return 1 ;; esac
+  ! printf '%s' "$c" | tr ';|' '\n\n' | sed 's/^[[:space:]]*//' | grep -v '^$' | grep -qvE "$LEITURA"
+}
+
 if [ -z "$py" ]; then
   if [ "$event" = "session_start" ] && [ -n "$data" ] && [ -f "$here/bootstrap.sh" ]; then
     msg="$(bash "$here/bootstrap.sh" "$data" 2>&1 | tail -n 1 | tr -d '"\\' | tr '\r\n\t' '   ')"
     py="$(find_py)"
     if [ -z "$py" ]; then
-      ctx SessionStart "[ada] ALERTA: o ambiente Python da Ada não foi criado ($msg). Até resolver, escrita e shell ficam negados neste projeto. Diagnóstico: bash $here/ada.sh doctor"
+      ctx SessionStart "[ada] ALERTA: o ambiente Python da Ada não foi criado ($msg). Até resolver, escrita e shell ficam negados neste projeto. Diagnóstico: $(como_rodar doctor)"
       exit 0
     fi
   else
@@ -85,14 +120,18 @@ if [ -z "$py" ]; then
       pretool)
         tool="$(printf '%s' "$input" | grep -o '"tool_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n 1 | sed 's/.*"\([^"]*\)"$/\1/')"
         case "$tool" in
-          Read|Glob|Grep|LS|WebFetch|WebSearch|TodoWrite|Skill|ToolSearch|AskUserQuestion) exit 0 ;;
+          Write|Edit|MultiEdit|NotebookEdit) ;;
           Bash|PowerShell)
-            if printf '%s' "$input" | grep -qE 'ada\.sh(\\?["'"'"'])?[[:space:]]+(--data[[:space:]]+[^[:space:]]+[[:space:]]+)?(doctor|configurar|bootstrap)'; then exit 0; fi ;;
+            if printf '%s' "$input" | grep -qE 'ada\.sh(\\?["'"'"'])?[[:space:]]+(--data[[:space:]]+[^[:space:]]+[[:space:]]+)?(doctor|configurar|bootstrap)'; then exit 0; fi
+            leitura_simples && exit 0 ;;
+          mcp__*)
+            printf '%s' "$tool" | grep -qiE "$ATLASSIAN_ESCRITA" || exit 0 ;;
+          *) exit 0 ;;
         esac
-        deny "o ambiente Python da Ada ainda não existe: escrita e comandos ficam negados até o bootstrap. Crie agora com: bash $here/ada.sh bootstrap (ou abra uma sessão nova). Diagnóstico: bash $here/ada.sh doctor"
+        deny "o ambiente Python da Ada ainda não existe: escrita, escrita no Jira/Confluence e comandos que não sejam leitura ficam negados até o bootstrap. Crie agora (ou abra uma sessão nova): $(como_rodar bootstrap). Diagnóstico: $(como_rodar doctor)"
         ;;
       session_start)
-        ctx SessionStart "[ada] ALERTA: pasta de dados do plugin desconhecida; ambiente Python não verificado. Diagnóstico: bash $here/ada.sh doctor"
+        ctx SessionStart "[ada] ALERTA: pasta de dados do plugin desconhecida; ambiente Python não verificado. Diagnóstico: $(como_rodar doctor)"
         ;;
     esac
     exit 0
@@ -132,10 +171,10 @@ rm -f "$errf"
 [ -n "$dev" ] && exit 0
 case "$event" in
   pretool)
-    deny "hook sem Python ($err): ação negada (fail-closed). Diagnóstico: bash $here/ada.sh doctor"
+    deny "hook sem Python ($err): ação negada (fail-closed). Diagnóstico: $(como_rodar doctor)"
     ;;
   session_start)
-    ctx SessionStart "[ada] ALERTA: hooks sem Python ($err). Ferramentas de escrita serão negadas. Diagnóstico: bash $here/ada.sh doctor"
+    ctx SessionStart "[ada] ALERTA: hooks sem Python ($err). Ferramentas de escrita serão negadas. Diagnóstico: $(como_rodar doctor)"
     ;;
   *) ;;
 esac
