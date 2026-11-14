@@ -1,0 +1,15 @@
+# modelo_versao: 1
+# Modelo da fila de demandas. Copie o bloco para ada/demandas.yaml (editado só pela humana).
+# Validação: "Ada, bom dia" (ou ada.sh validate). Schema no plugin.
+- id: D-001
+  titulo: Atendimento regulariza pedido sem abrir chamado
+  pedido: >
+    O atendimento recebe todos os dias casos de pedido não entregue com pagamento confirmado e depende de
+    chamado para outra área. Quer resolver no primeiro contato, dentro das regras da política vigente.
+  solicitante: Atendimento
+  tipo: refinar_epico          # novo_epico | refinar_epico | historias
+  epico_jira: ABC-39           # obrigatório para refinar_epico e historias
+  tamanho: M                   # P (até 3 histórias) | M (até 6) | G (até 10)
+  termos: [reprocessamento, pedido, limite mensal]
+  fontes_extra: [ABC-55, <URL da página de política no Confluence>]
+  fora_de_escopo: [Estornos (outro épico)]

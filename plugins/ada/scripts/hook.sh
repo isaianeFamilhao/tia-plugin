@@ -87,9 +87,9 @@ if [ -z "$py" ]; then
         case "$tool" in
           Read|Glob|Grep|LS|WebFetch|WebSearch|TodoWrite|Skill|ToolSearch|AskUserQuestion) exit 0 ;;
           Bash|PowerShell)
-            if printf '%s' "$input" | grep -qE 'ada\.sh(\\?["'"'"'])?[[:space:]]+doctor'; then exit 0; fi ;;
+            if printf '%s' "$input" | grep -qE 'ada\.sh(\\?["'"'"'])?[[:space:]]+(--data[[:space:]]+[^[:space:]]+[[:space:]]+)?(doctor|configurar|bootstrap)'; then exit 0; fi ;;
         esac
-        deny "o ambiente Python da Ada ainda não existe: escrita e comandos ficam negados até o bootstrap. Abra uma sessão nova (o SessionStart cria o ambiente) ou rode o diagnóstico: bash $here/ada.sh doctor"
+        deny "o ambiente Python da Ada ainda não existe: escrita e comandos ficam negados até o bootstrap. Crie agora com: bash $here/ada.sh bootstrap (ou abra uma sessão nova). Diagnóstico: bash $here/ada.sh doctor"
         ;;
       session_start)
         ctx SessionStart "[ada] ALERTA: pasta de dados do plugin desconhecida; ambiente Python não verificado. Diagnóstico: bash $here/ada.sh doctor"

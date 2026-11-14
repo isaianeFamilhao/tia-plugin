@@ -5,17 +5,23 @@
 #
 # Acha o venv do plugin (CLAUDE_PLUGIN_DATA, ou o caminho que o hook deixou em .ada/cache/plugin-data) e roda
 # scripts/<script>.py. `doctor` e `configurar` rodam com o Python do sistema se o venv ainda não existe.
+# `ada.sh bootstrap` cria o venv (o hook deixa o caminho dos dados em .ada/cache/plugin-data).
+# `--data <pasta>` antes do script informa a pasta de dados do plugin explicitamente.
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+data="${CLAUDE_PLUGIN_DATA:-${ADA_PLUGIN_DATA:-}}"
+if [ "${1:-}" = "--data" ]; then
+  case "${2:-}" in ""|*'${'*) ;; *) data="$2" ;; esac   # variável não substituída na skill: ignora
+  shift 2
+fi
 script="${1:-}"
 shift 2>/dev/null
 case "$script" in
-  ""|-h|--help) echo "uso: ada.sh <script> [args]  (scripts: $(cd "$here" && ls *.py | grep -v '^_' | sed 's/\.py$//' | tr '\n' ' '))"; exit 0 ;;
+  ""|-h|--help) echo "uso: ada.sh [--data <pasta>] <script> [args]  (scripts: bootstrap $(cd "$here" && ls *.py | grep -v '^_' | sed 's/\.py$//' | tr '\n' ' '))"; exit 0 ;;
 esac
-if ! printf '%s' "$script" | grep -qE '^[a-z_]+$' || [ ! -f "$here/$script.py" ] || [ "${script#_}" != "$script" ]; then
+if [ "$script" != "bootstrap" ] && { ! printf '%s' "$script" | grep -qE '^[a-z_]+$' || [ ! -f "$here/$script.py" ]; }; then
   echo "[ada] script desconhecido: $script" >&2; exit 2
 fi
 
-data="${CLAUDE_PLUGIN_DATA:-}"
 if [ -z "$data" ]; then
   d="${CLAUDE_PROJECT_DIR:-$PWD}"
   while [ -n "$d" ]; do
@@ -23,6 +29,10 @@ if [ -z "$data" ]; then
     [ "$d" = "/" ] || [ "$d" = "$(dirname "$d")" ] && break
     d="$(dirname "$d")"
   done
+fi
+if [ "$script" = "bootstrap" ]; then
+  [ -n "$data" ] || { echo "[ada] pasta de dados do plugin desconhecida: abra uma sessão neste projeto (o hook informa o caminho) e tente de novo." >&2; exit 3; }
+  exec bash "$here/bootstrap.sh" "$data" "$@"
 fi
 py=""
 if [ -n "$data" ]; then
