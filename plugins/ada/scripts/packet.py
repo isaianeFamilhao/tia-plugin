@@ -3,7 +3,7 @@
     ada.sh packet  D-001 [--json]
 
 Grava `ada/demandas/D-001/packet.md`. Blocos, na ordem: demanda, digest, épico (se houver
-`epico_jira` e ele estiver em ada/kb/internal-tools/epicos.md), regras da Base de Conhecimento que batem com os termos,
+`epico_jira` e ele estiver num ada/kb/**/epicos.md), regras da Base de Conhecimento que batem com os termos,
 lacunas conhecidas, motivo de retrabalho. É o ponto de partida da pesquisa, não o fim dela.
 """
 from __future__ import annotations
@@ -45,11 +45,14 @@ def block_demanda(d: dict) -> str:
 def block_epico(root: Path, key: str | None) -> str:
     if not key:
         return ""
-    p = P(root, "kb", "internal-tools", "epicos.md")
-    if not p.exists():
-        return f"## Épico {key}\n\n(ada/kb/internal-tools/epicos.md ausente: buscar {key} no Jira)"
-    text = p.read_text(encoding="utf-8")
-    m = re.search(rf"(?ms)^## {re.escape(key)}\b.*?(?=^## |\Z)", text)
+    arquivos = sorted(P(root, "kb").rglob("epicos.md"))
+    if not arquivos:
+        return f"## Épico {key}\n\n(nenhum epicos.md na Base de Conhecimento: buscar {key} no Jira)"
+    m = None
+    for p in arquivos:
+        m = re.search(rf"(?ms)^## {re.escape(key)}\b.*?(?=^## |\Z)", p.read_text(encoding="utf-8"))
+        if m:
+            break
     if not m:
         return f"## Épico {key}\n\n({key} não está na Base de Conhecimento: buscar no Jira e registrar em epicos.md)"
     return "## Épico na Base de Conhecimento\n\n" + m.group(0).strip()

@@ -40,7 +40,7 @@ if [ ! -f "$root/.ada/config.yaml" ]; then
     if printf '%s' "$p" | grep -qiE '^[[:space:]]*Ada,[[:space:]]*(configura|configurar|instala|instalar|inicializa|inicializar|prepara|preparar)([^[:alnum:]]|$)'; then
       ctx UserPromptSubmit "[ada] Pedido de configuração: invoque a skill ada:configurar (cria .ada/config.yaml e a pasta ada/ neste projeto, com aprovação da PM)."
     elif printf '%s' "$p" | grep -qiE '^[[:space:]]*Ada,'; then
-      ctx UserPromptSubmit "[ada] Esta pasta ainda não é um workspace da Ada (falta .ada/config.yaml). Responda em uma linha oferecendo configurar (a PM diz: Ada, configurar). Não execute o pedido antes disso."
+      ctx UserPromptSubmit "[ada] Esta pasta ainda não é um workspace da Ada (falta .ada/config.yaml). Responda em uma linha, sem saudação nem exclamação, oferecendo configurar (a PM diz: Ada, configurar). Não execute o pedido antes disso."
     fi
   fi
   exit 0

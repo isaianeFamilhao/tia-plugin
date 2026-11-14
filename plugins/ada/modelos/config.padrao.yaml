@@ -53,7 +53,7 @@ pacote:
   caps:
     demanda: 700
     digest: 1200
-    epico: 1500        # bloco do épico em kb/internal-tools/epicos.md, quando há epico_jira
+    epico: 1500        # bloco do épico num ada/kb/**/epicos.md, quando há epico_jira
     regras: 4500       # regras da kb que batem com os termos
     lacunas: 600       # lacunas conhecidas da kb que batem com os termos
     retrabalho: 400

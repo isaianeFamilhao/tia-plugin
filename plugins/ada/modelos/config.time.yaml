@@ -11,11 +11,11 @@ atlassian:
   jira_projeto: "{jira_projeto}"      # chave do projeto do time no Jira
   espacos_confluence: {espacos_lista}   # espaços que a Ada consulta
 
-# Política por espaço: só o espaço marcado `manter` pode ser alterado (com C1). Os demais são somente leitura.
+# Política por espaço: só o espaço marcado `manter` pode ser alterado (com C1). Os demais (e qualquer espaço
+# fora desta lista) são somente leitura: regra do plugin, não configurável.
 confluence:
   espacos:
 {espacos_bloco}
-  padrao: somente_leitura
 
 modelos:
   permitidos: [opus, sonnet, haiku]

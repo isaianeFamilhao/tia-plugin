@@ -40,6 +40,7 @@ def test_cria_workspace_completo(vazio):
     assert cfg["confluence"]["espacos"]["PO"]["nome"] == "Políticas"
     assert cfg["atlassian"]["jira_projeto"] == "IT" and cfg["modelo_versao"] == 1
     assert cfg["escopo_escrita"]["caminhos"] == ["ada/**"]
+    assert _common.config_sobreposicoes_ignoradas(vazio) == []
     assert kb.validate_kb(vazio)["ok"]
     assert validate.validate(vazio / "ada" / "demandas.yaml", vazio)["ok"]
     claude = (vazio / "CLAUDE.md").read_text(encoding="utf-8")
