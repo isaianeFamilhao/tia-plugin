@@ -1,9 +1,9 @@
 """Pacote de contexto de uma demanda, gerado do disco (nunca da conversa), com tetos por bloco.
 
-    python .harness/bin/packet.py D-001 [--json]
+    ada.sh packet  D-001 [--json]
 
-Grava `.harness/demandas/D-001/packet.md`. Blocos, na ordem: demanda, digest, épico (se houver
-`epico_jira` e ele estiver em kb/internal-tools/epicos.md), regras da Base de Conhecimento que batem com os termos,
+Grava `ada/demandas/D-001/packet.md`. Blocos, na ordem: demanda, digest, épico (se houver
+`epico_jira` e ele estiver em ada/kb/internal-tools/epicos.md), regras da Base de Conhecimento que batem com os termos,
 lacunas conhecidas, motivo de retrabalho. É o ponto de partida da pesquisa, não o fim dela.
 """
 from __future__ import annotations
@@ -16,17 +16,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import kb as kbmod  # noqa: E402
-from _common import (REPO_ROOT, atomic_write_text, est_tokens, fit_tokens,  # noqa: E402
+from _common import (REPO_ROOT, P, atomic_write_text, est_tokens, fit_tokens,  # noqa: E402
                      load_config, load_yaml, read_json)
 
 ORDER = ("demanda", "digest", "epico", "regras", "lacunas", "retrabalho")
 
 
 def find_demand(root: Path, did: str) -> dict:
-    for d in load_yaml(root / ".harness" / "demandas.yaml") or []:
+    for d in load_yaml(P(root, "fila")) or []:
         if isinstance(d, dict) and d.get("id") == did:
             return d
-    raise SystemExit(f"{did} não está em .harness/demandas.yaml")
+    raise SystemExit(f"{did} não está em ada/demandas.yaml")
 
 
 def block_demanda(d: dict) -> str:
@@ -45,9 +45,9 @@ def block_demanda(d: dict) -> str:
 def block_epico(root: Path, key: str | None) -> str:
     if not key:
         return ""
-    p = root / "kb" / "internal-tools" / "epicos.md"
+    p = P(root, "kb", "internal-tools", "epicos.md")
     if not p.exists():
-        return f"## Épico {key}\n\n(kb/internal-tools/epicos.md ausente: buscar {key} no Jira)"
+        return f"## Épico {key}\n\n(ada/kb/internal-tools/epicos.md ausente: buscar {key} no Jira)"
     text = p.read_text(encoding="utf-8")
     m = re.search(rf"(?ms)^## {re.escape(key)}\b.*?(?=^## |\Z)", text)
     if not m:
@@ -78,7 +78,7 @@ def block_lacunas(root: Path, query: str) -> str:
 
 
 def block_retrabalho(root: Path, did: str) -> str:
-    led = read_json(root / ".harness" / "ledger.json") or {}
+    led = read_json(P(root, "ledger")) or {}
     d = (led.get("demandas") or {}).get(did) or {}
     reworks = [g for g in d.get("g2") or [] if g.get("decisao") == "rework"]
     if not reworks:
@@ -93,7 +93,7 @@ def build(root: Path, did: str) -> tuple[str, dict]:
     cpt = float(pc.get("chars_per_token") or 3.0)
     d = find_demand(root, did)
     query = " ".join(d.get("termos") or []) or d["titulo"]
-    digest_p = root / ".harness" / "digest.md"
+    digest_p = P(root, "cache", "digest.md")
     regras_txt, regra_ids = block_regras(root, query, int(pc.get("max_regras") or 25))
     raw = {
         "demanda": block_demanda(d),
@@ -130,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--root", type=Path, default=REPO_ROOT)
     a = ap.parse_args(argv)
     text, meta = build(a.root, a.demanda)
-    out = a.root / ".harness" / "demandas" / a.demanda / "packet.md"
+    out = P(a.root, "demandas", a.demanda, "packet.md")
     atomic_write_text(out, text)
     meta["arquivo"] = out.relative_to(a.root).as_posix()
     if a.json:

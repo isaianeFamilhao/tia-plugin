@@ -78,17 +78,17 @@ AP_OK = """# Apontamentos
 
 
 def test_apontamentos_validos(proj):
-    (proj / "kb" / "apontamentos.md").write_text(AP_OK, encoding="utf-8")
+    (proj / "ada" / "kb" / "apontamentos.md").write_text(AP_OK, encoding="utf-8")
     assert kb.validate_apontamentos(proj) == []
     assert len(kb.parse_apontamentos(proj)) == 1
 
 
 def test_documentar_so_no_int(proj):
-    (proj / "kb" / "apontamentos.md").write_text(AP_OK.replace("**Tipo:** duvida", "**Tipo:** documentar"),
+    (proj / "ada" / "kb" / "apontamentos.md").write_text(AP_OK.replace("**Tipo:** duvida", "**Tipo:** documentar"),
                                                  encoding="utf-8")
     assert any("só vale para espaço" in e["erro"] for e in kb.validate_apontamentos(proj))
 
 
 def test_fechar_exige_resolucao(proj):
-    (proj / "kb" / "apontamentos.md").write_text(AP_OK.replace("aberto\n", "resolvido\n"), encoding="utf-8")
+    (proj / "ada" / "kb" / "apontamentos.md").write_text(AP_OK.replace("aberto\n", "resolvido\n"), encoding="utf-8")
     assert any("Resolução" in e["erro"] for e in kb.validate_apontamentos(proj))

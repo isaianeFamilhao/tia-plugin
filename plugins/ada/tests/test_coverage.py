@@ -77,7 +77,7 @@ def test_limite_de_historias(proj, entrega):
 
 
 def test_regra_revogada_reprova(proj, entrega):
-    f = proj / "kb/internal-tools/regras/reprocessamento-ajustes.md"
+    f = proj / "ada/kb/internal-tools/regras/reprocessamento-ajustes.md"
     t = f.read_text(encoding="utf-8")
     i = t.index("### RN-ITR-003")
     f.write_text(t[:i] + t[i:].replace("- **Status:** confirmada", "- **Status:** revogada", 1), encoding="utf-8")

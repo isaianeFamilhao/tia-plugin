@@ -1,6 +1,6 @@
 """Relatório das demandas: estado, entregas, cobertura e consumo (métricas da transcrição).
 
-    python .harness/bin/report.py [--json]
+    ada.sh report  [--json]
 """
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import REPO_ROOT, read_json  # noqa: E402
+from _common import REPO_ROOT, P, read_json  # noqa: E402
 
 
 def build(root: Path = REPO_ROOT) -> list[dict]:
-    led = read_json(root / ".harness" / "ledger.json") or {}
+    led = read_json(P(root, "ledger")) or {}
     rows = []
     for did, d in sorted((led.get("demandas") or {}).items()):
-        ddir = root / ".harness" / "demandas" / did
+        ddir = P(root, "demandas", did)
         cov = read_json(ddir / "cobertura.json") or {}
         met = read_json(ddir / "metrics.json") or {}
         matriz = cov.get("matriz") or []

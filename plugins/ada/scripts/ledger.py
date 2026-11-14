@@ -1,16 +1,16 @@
-"""Máquina de estados das demandas (.harness/ledger.json). Estado só no disco, nunca na conversa.
+"""Máquina de estados das demandas (.ada/ledger.json). Estado só no disco, nunca na conversa.
 
-    python .harness/bin/ledger.py sync
-    python .harness/bin/ledger.py status [--json]
-    python .harness/bin/ledger.py show D-001
-    python .harness/bin/ledger.py g1 D-001 --approve|--skip [--note TXT]
-    python .harness/bin/ledger.py iniciar D-001 --session-id ID
-    python .harness/bin/ledger.py coletar D-001
-    python .harness/bin/ledger.py abandonar D-001 --note TXT
-    python .harness/bin/ledger.py g2 D-001 --accept|--rework|--reject --note TXT
-    python .harness/bin/ledger.py k1 D-001 --regras RN-ITR-010,RN-ITR-011 --note TXT
-    python .harness/bin/ledger.py g3 D-001 --approve --note "<resposta literal do humano>"
-    python .harness/bin/ledger.py publicada D-001 --refs IT-70,IT-71
+    ada.sh ledger  sync
+    ada.sh ledger  status [--json]
+    ada.sh ledger  show D-001
+    ada.sh ledger  g1 D-001 --approve|--skip [--note TXT]
+    ada.sh ledger  iniciar D-001 --session-id ID
+    ada.sh ledger  coletar D-001
+    ada.sh ledger  abandonar D-001 --note TXT
+    ada.sh ledger  g2 D-001 --accept|--rework|--reject --note TXT
+    ada.sh ledger  k1 D-001 --regras RN-ITR-010,RN-ITR-011 --note TXT
+    ada.sh ledger  g3 D-001 --approve --note "<resposta literal do humano>"
+    ada.sh ledger  publicada D-001 --refs IT-70,IT-71
 
 Ciclo (README, "Ciclo da demanda"):
   draft ─validate─► valid ─G1─► approved ─iniciar─► running ─coletar─► delivered | blocked
@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import (DEMAND_ID_RE, JIRA_KEY_RE, REPO_ROOT, RULE_ID_RE,  # noqa: E402
+from _common import (DEMAND_ID_RE, JIRA_KEY_RE, REPO_ROOT, P, RULE_ID_RE,  # noqa: E402
                      load_config, load_yaml, now_iso, read_json, write_json)
 
 SCHEMA_VERSION = 1
@@ -55,8 +55,7 @@ class LedgerError(Exception):
 
 
 def paths(root: Path) -> dict[str, Path]:
-    h = root / ".harness"
-    return {"ledger": h / "ledger.json", "demandas": h / "demandas.yaml", "dir": h / "demandas"}
+    return {"ledger": P(root, "ledger"), "demandas": P(root, "fila"), "dir": P(root, "demandas")}
 
 
 def demand_hash(d: dict) -> str:
@@ -180,7 +179,7 @@ class Ledger:
             coverage.write_json(ddir / "cobertura.json", rep)
         if not rep["ok"]:
             raise LedgerError(f"{did}: entrega reprovada pela cobertura ({len(rep['erros'])} erro(s)); "
-                              f"veja .harness/demandas/{did}/cobertura.md")
+                              f"veja ada/demandas/{did}/cobertura.md")
         to = "blocked" if rep["status"] == "blocked" else "delivered"
         res = read_json(ddir / "result.json") or {}
         d["entrega"] = {"em": now_iso(), "status": to, "historias": res.get("historias"),
@@ -268,7 +267,7 @@ def c1_authorize(root: Path, espaco: str, pagina: str, nota: str, titulo: str | 
     key, pol = confluence_policy(cfg, espaco=espaco)
     if pol != "manter":
         raise LedgerError(f"espaço {espaco} é somente leitura: o harness nunca altera páginas nele "
-                          "(aponte a dúvida em kb/apontamentos.md)")
+                          "(aponte a dúvida em ada/kb/apontamentos.md)")
     if pagina != "novo" and not pagina.isdigit():
         raise LedgerError("--pagina deve ser o id numérico da página ou `novo`")
     horas = int((cfg.get("confluence") or {}).get("c1_validade_horas") or 24)
@@ -285,7 +284,7 @@ def c1_valid(root: Path, pagina: str | None) -> dict | None:
     """C1 vigente para a página (ou `novo`), ou None."""
     from datetime import datetime
 
-    led = read_json(root / ".harness" / "ledger.json") or {}
+    led = read_json(P(root, "ledger")) or {}
     now = datetime.now().astimezone()
     for reg in reversed(led.get("c1") or []):
         try:

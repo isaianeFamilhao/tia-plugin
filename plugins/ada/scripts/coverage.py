@@ -1,8 +1,8 @@
 """Avaliador determinístico da entrega de uma demanda (o "evaluator" do harness). Zero tokens.
 
-    python .harness/bin/coverage.py D-001 [--json] [--no-write]
+    ada.sh coverage  D-001 [--json] [--no-write]
 
-Lê os artefatos de `.harness/demandas/D-001/` e confere o contrato (README, seção "Artefatos"):
+Lê os artefatos de `ada/demandas/D-001/` e confere o contrato (README, seção "Artefatos"):
 result.json, épico no padrão de épico da squad, histórias com critérios Dado/Quando/Então,
 regras existentes (Base de Conhecimento ou candidatas com fonte) e COBERTURA: toda regra relevante tem pelo menos
 um critério que a cita, ou está fora do escopo com motivo. Grava `cobertura.md` e `cobertura.json`.
@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import kb as kbmod  # noqa: E402
-from _common import (CANDIDATE_ID_RE, DEMAND_ID_RE, REPO_ROOT, RULE_ID_RE,  # noqa: E402
+from _common import (CANDIDATE_ID_RE, DEMAND_ID_RE, REPO_ROOT, P, RULE_ID_RE,  # noqa: E402
                      SOURCE_ID_RE, atomic_write_text, load_config, read_json, write_json)
 
 RESULT_KEYS = ("demanda_id", "status", "historias", "regras_relevantes", "fora_do_escopo", "lacunas",
@@ -34,7 +34,7 @@ RULE_REF_RE = re.compile(r"RN-[A-Z]{3}-\d{3}|RC-\d{2,3}")
 
 
 def demand_dir(root: Path, did: str) -> Path:
-    return root / ".harness" / "demandas" / did
+    return P(root, "demandas", did)
 
 
 # ------------------------------------------------------------------ result.json
@@ -229,7 +229,7 @@ def evaluate(did: str, root: Path = REPO_ROOT) -> dict:
         if not SOURCE_ID_RE.match(s):
             rep["erros"].append(f"fonte fora do padrão: {s}")
         elif s not in sources:
-            rep["erros"].append(f"fonte {s} não registrada (kb/fontes ou fontes.yaml da demanda)")
+            rep["erros"].append(f"fonte {s} não registrada (ada/kb/fontes ou fontes.yaml da demanda)")
     if pesq.exists():
         ptxt = pesq.read_text(encoding="utf-8")
         unseen = [s for s in fontes if s not in ptxt]
@@ -245,7 +245,7 @@ def evaluate(did: str, root: Path = REPO_ROOT) -> dict:
     size = None
     try:
         from _common import load_yaml
-        for item in load_yaml(root / ".harness" / "demandas.yaml") or []:
+        for item in load_yaml(P(root, "fila")) or []:
             if isinstance(item, dict) and item.get("id") == did:
                 size = item.get("tamanho")
     except (OSError, ValueError):

@@ -1,9 +1,9 @@
-"""Base de conhecimento: leitura, busca e validação determinística (formato em kb/README.md).
+"""Base de conhecimento: leitura, busca e validação determinística (formato em ada/kb/README.md).
 
-    python .harness/bin/kb.py buscar "reprocessamento limite mensal" [--max 15] [--json]
-    python .harness/bin/kb.py regra RN-ITR-001
-    python .harness/bin/kb.py validar [--json]
-    python .harness/bin/kb.py stats
+    ada.sh kb  buscar "reprocessamento limite mensal" [--max 15] [--json]
+    ada.sh kb  regra RN-ITR-001
+    ada.sh kb  validar [--json]
+    ada.sh kb  stats
 
 Também é a biblioteca usada por packet.py, coverage.py, doctor.py e pelo hook Stop.
 """
@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import (CANDIDATE_ID_RE, REPO_ROOT, RULE_ID_RE, SOURCE_ID_RE,  # noqa: E402
+from _common import (CANDIDATE_ID_RE, REPO_ROOT, P, RULE_ID_RE, SOURCE_ID_RE,  # noqa: E402
                      load_yaml)
 
 RULE_HEAD_RE = re.compile(r"^###\s+((?:RN-[A-Z]{3}-\d{3})|(?:RC-\d{2,3}))\s*[·\-—:]\s*(.+?)\s*$")
@@ -84,7 +84,7 @@ def parse_rules(path: Path, root: Path = REPO_ROOT) -> list[Rule]:
 
 
 def rule_files(root: Path = REPO_ROOT) -> list[Path]:
-    kb = root / "kb"
+    kb = P(root, "kb")
     return sorted(p for p in kb.rglob("*.md") if "regras" in p.parts)
 
 
@@ -97,7 +97,7 @@ def load_rules(root: Path = REPO_ROOT) -> list[Rule]:
 
 def load_sources(root: Path = REPO_ROOT, extra: list[Path] | None = None) -> dict[str, dict]:
     out: dict[str, dict] = {}
-    files = sorted((root / "kb" / "fontes").glob("*.yaml")) + list(extra or [])
+    files = sorted(P(root, "kb", "fontes").glob("*.yaml")) + list(extra or [])
     for p in files:
         if not p.exists():
             continue
@@ -117,7 +117,7 @@ def load_sources(root: Path = REPO_ROOT, extra: list[Path] | None = None) -> dic
 def lacunas(root: Path = REPO_ROOT) -> list[dict]:
     """Itens de `## Lacunas` dos arquivos da Base de Conhecimento."""
     out = []
-    for p in sorted((root / "kb").rglob("*.md")):
+    for p in sorted(P(root, "kb").rglob("*.md")):
         inside = False
         for line in p.read_text(encoding="utf-8").splitlines():
             if line.startswith("## "):
@@ -190,7 +190,7 @@ def validate_kb(root: Path = REPO_ROOT) -> dict:
     return {"ok": not errs, "erros": errs, "regras": len(rules), "fontes": len(sources)}
 
 
-# ------------------------------------------------------------------ apontamentos (kb/apontamentos.md)
+# ------------------------------------------------------------------ apontamentos (ada/kb/apontamentos.md)
 AP_HEAD_RE = re.compile(r"^###\s+(AP-\d{3})\s*[·\-—:]\s*(.+?)\s*$")
 AP_FIELD_RE = re.compile(r"^-\s+\*\*(Tipo|Espaço|Página|O quê|Sugestão|Status|Aberto em|Resolução):\*\*\s*(.*)$")
 AP_REQUIRED = ("Tipo", "Espaço", "Página", "O quê", "Status", "Aberto em")
@@ -199,7 +199,7 @@ AP_STATUS = ("aberto", "resolvido", "descartado")
 
 
 def parse_apontamentos(root: Path = REPO_ROOT) -> list[dict]:
-    p = root / "kb" / "apontamentos.md"
+    p = P(root, "kb", "apontamentos.md")
     if not p.exists():
         return []
     out: list[dict] = []
@@ -234,7 +234,7 @@ def validate_apontamentos(root: Path, cfg: dict | None = None) -> list[dict]:
     espacos = (cfg.get("confluence") or {}).get("espacos") or {}
     errs, seen = [], set()
     for a in parse_apontamentos(root):
-        where = f"kb/apontamentos.md:{a['linha']}"
+        where = f"ada/kb/apontamentos.md:{a['linha']}"
         c = a["campos"]
         if a["id"] in seen:
             errs.append({"id": a["id"], "onde": where, "erro": "ID duplicado"})

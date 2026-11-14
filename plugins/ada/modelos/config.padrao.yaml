@@ -1,0 +1,102 @@
+# Configuração do harness de produto. Lida pelos scripts de .harness/bin/.
+version: 1
+
+# Tamanho da demanda (definido pelo humano na fila; confirmado no G1).
+# Maior que G: dividir em mais de uma demanda (um épico por demanda).
+tamanhos:
+  P: {max_historias: 3, max_criterios_por_historia: 5}
+  M: {max_historias: 6, max_criterios_por_historia: 6}
+  G: {max_historias: 10, max_criterios_por_historia: 7}
+
+# Retrabalho no G2 (motivo obrigatório). Depois do limite, a demanda volta para ser dividida.
+max_retrabalho: 2
+
+# Escopo de escrita do agente (hook PreToolUse). Tudo fora disso é negado: o harness de produto
+# não escreve código de aplicação. Extensões permitidas valem dentro desses caminhos.
+escopo_escrita:
+  caminhos:
+    - "ada/**"
+  extensoes: [".md", ".yaml", ".yml", ".json"]
+  # Arquivos que só o humano edita (o agente propõe a mudança na conversa).
+  somente_humano:
+    - "ada/demandas.yaml"
+    - "ada/kb/README.md"
+
+# Integração Atlassian (hook PreToolUse). Leitura livre; escrita só depois do G3 da demanda ativa,
+# e mesmo assim cada chamada pede confirmação humana (ask).
+atlassian:
+  cloud_id: bdacf5a1-ccd3-44b6-a9f0-65eb934d9827
+  site: https://familhao-scm.atlassian.net
+  jira_projeto: IT
+  espacos_confluence: [INT, BPE, PO, Parcerias, QA, APP, EER, PLAYBOOKS]
+  # Prefixos de nome de ferramenta MCP que escrevem no Jira/Confluence.
+  ferramentas_escrita_regex: "(?i)__(create|edit|update|transition|add|delete)[A-Za-z]*(Jira|Confluence|Issue|Page|Comment|Worklog|Compass|Link)"
+  # Subconjunto que escreve no Confluence (página ou comentário): segue a política por espaço abaixo.
+  confluence_escrita_regex: "(?i)__(create|update|edit|delete)Confluence"
+
+# Política por espaço do Confluence (hook PreToolUse + skill /confluence).
+#   manter          → consultar livre; alterar só com C1 da página (resposta literal da humana, validade
+#                     limitada) e cada escrita ainda pede confirmação; apontar o que precisa ser documentado.
+#   somente_leitura → consultar quando necessário; NUNCA criar, editar ou comentar; apontar dúvidas.
+confluence:
+  espacos:
+    INT: {id: "282787868", nome: Internal Tools, politica: manter}
+    PO: {id: "370737187", nome: Políticas, politica: somente_leitura}
+    PLAYBOOKS: {id: "322895878", nome: Playbooks, politica: somente_leitura}
+  padrao: somente_leitura          # qualquer outro espaço
+  c1_validade_horas: 24
+
+# Pacote de contexto da demanda (packet.py). Tokens ESTIMADOS [E] = caracteres ÷ chars_per_token.
+pacote:
+  chars_per_token: 3.0
+  caps:
+    demanda: 700
+    digest: 1200
+    epico: 1500        # bloco do épico em kb/internal-tools/epicos.md, quando há epico_jira
+    regras: 4500       # regras da kb que batem com os termos
+    lacunas: 600       # lacunas conhecidas da kb que batem com os termos
+    retrabalho: 400
+    total: 8900
+  max_regras: 25
+
+# Digest rolante: reescrito a cada demanda aceita.
+digest:
+  max_tokens: 1200
+  ultimas_entregas: 5
+
+# Cobertura (coverage.py): o que reprova a entrega antes do G2.
+cobertura:
+  # Toda regra declarada como relevante precisa de >= 1 critério de aceite que a cite,
+  # ou estar em "Fora do escopo"/"Lacunas" com justificativa.
+  exigir_regra_coberta: true
+  # Critério de aceite precisa do formato Dado/Quando/Então.
+  formato_criterio: "(?is)\\bdado\\b.+\\bquando\\b.+\\bent[aã]o\\b"
+  palavras_vagas: [corretamente, adequad, intuitiv, rápido, rapido, amigável, amigavel, eficiente, "de forma fácil", melhor]
+  # Seções obrigatórias do épico (skill /epico-internal-tools), nesta ordem.
+  secoes_epico:
+    - "Em uma frase"
+    - "Por que isso importa"
+    - "O que muda no dia a dia"
+    - "Como vamos saber que funcionou"
+    - "Escopo"
+    - "Fora do escopo"
+    - "O que precisamos combinar"
+
+# Métricas (hook PostToolUse): só registro e alerta, sem corte (decisão D-PM-03).
+metricas:
+  alerta_saida_tokens_por_demanda: 120000
+
+# Dados (MCPs analíticos e CLIs): sempre só leitura. Nenhuma fonte é fixa: a Ada descobre o que está
+# conectado e aprende o que a PM usa (Memória do PM).
+dados:
+  # Ferramentas MCP cujo nome bate aqui são tratadas como fonte de dados (consulta conferida pelo hook).
+  mcp_regex: "(?i)databricks|looker|bigquery|snowflake|amplitude|redshift|postgres|mysql|warehouse|genie|metabase|mixpanel|tableau|power.?bi|\\bsql\\b|_sql|sql_"
+  clis: [databricks, bq, psql, snowsql, sqlcmd, mysql, duckdb]
+  # Comando que altera dados: negado em qualquer fonte.
+  escrita_regex: "(?i)\\b(insert\\s+into|update\\s+\\w+\\s+set|delete\\s+from|merge\\s+into|create\\s+(or\\s+replace\\s+)?(table|view|schema|catalog|function|volume)|drop\\s+(table|view|schema|catalog|function|volume)|alter\\s+(table|view|schema)|truncate\\s+table|grant\\s|revoke\\s|copy\\s+into|optimize\\s|vacuum\\s)"
+  # Ação de MCP/CLI de dados que cria ou roda algo (jobs, clusters, pipelines): pede confirmação.
+  acao_regex: "(?i)\\b(create|delete|update|edit|start|stop|restart|run[-_ ]?now|submit|deploy|destroy|reset|permanent[-_]delete|import)\\b"
+
+modelos:
+  permitidos: [opus, sonnet, haiku]
+  esforco: medium

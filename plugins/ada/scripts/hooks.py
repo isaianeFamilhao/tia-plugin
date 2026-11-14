@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import (REPO_ROOT, load_config, norm_path, now_iso, path_allowed,  # noqa: E402
+from _common import (REPO_ROOT, P, find_data_root, load_config, norm_path, now_iso, path_allowed,  # noqa: E402
                      read_json, rel_to_root, transcript_usage, write_json)
 
 EVENTS = ("session_start", "pretool", "posttool", "stop")
@@ -49,7 +49,7 @@ SHELL_WRITE_RE = re.compile(
     r"|\b(?:Out-File|Set-Content|Add-Content|Copy-Item|Move-Item|Remove-Item|New-Item|Rename-Item)\b"
     r"|\bgit\s+(?:checkout|restore|rm|mv|reset|clean|stash)\b|open\([^)]*['\"][wa]")
 PROTECTED_PATH_RE = re.compile(
-    r"(?i)\.harness[/\\](?:bin|schema|monitoramento|config\.yaml|demandas\.yaml|ledger\.json)|\.claude[/\\]|CLAUDE\.md"
+    r"(?i)(?:^|[\s\"'/\\])\.ada[/\\]|ada[/\\]demandas\.yaml|\.harness[/\\]|\.claude[/\\]|CLAUDE\.md"
     r"|kb[/\\]README\.md|(?:^|[\s\"'/\\])tests[/\\]|requirements\.txt|\.github[/\\]")
 # 2) Perigoso em qualquer lugar: pede confirmação a cada vez.
 SHELL_RISKY = [
@@ -82,11 +82,11 @@ def shell_is_safe(cmd: str) -> bool:
 
 def root_of(data: dict) -> Path:
     """Raiz do projeto: a do próprio script (HARNESS_ROOT só para testes)."""
-    return Path(os.environ["HARNESS_ROOT"]) if os.environ.get("HARNESS_ROOT") else REPO_ROOT
+    return find_data_root(data.get("cwd")) or Path(data.get("cwd") or REPO_ROOT)
 
 
 def ledger(root: Path) -> dict:
-    return read_json(root / ".harness" / "ledger.json") or {}
+    return read_json(P(root, "ledger")) or {}
 
 
 def active_demand(root: Path) -> tuple[str | None, dict]:
@@ -120,7 +120,7 @@ def check_write(root: Path, cfg: dict, path: str) -> dict | None:
         if tmp and norm_path(path).lower().startswith(tmp + "/"):
             return None  # rascunho temporário (ex.: artifact baixado): segue as permissões normais
         return pre("deny", f"escrita fora do projeto negada: {path}")
-    if rel.lower().startswith(".harness/monitoramento/"):
+    if rel.lower().startswith(".ada/monitoramento/"):
         return pre("deny", "monitores e leituras mudam só pelo `metricas.py` (ativar, avaliar, encerrar)")
     if path_allowed(rel, esc.get("somente_humano") or []):
         return pre("deny", f"{rel} é editado só pelo humano: proponha a mudança na conversa")
@@ -130,7 +130,7 @@ def check_write(root: Path, cfg: dict, path: str) -> dict | None:
     ext = Path(rel).suffix.lower()
     if ext not in [e.lower() for e in esc.get("extensoes") or []]:
         return pre("deny", f"extensão {ext or '(nenhuma)'} não permitida em {rel}")
-    m = re.match(r"^\.harness/demandas/(D-\d{3})/", rel, re.IGNORECASE)
+    m = re.match(r"^ada/demandas/(D-\d{3})/", rel, re.IGNORECASE)
     if m:
         did, _ = active_demand(root)
         if did is None:
@@ -139,7 +139,7 @@ def check_write(root: Path, cfg: dict, path: str) -> dict | None:
             return pre("deny", f"{did} está em andamento: não edite a pasta de {m.group(1)}")
         if rel.endswith(("/packet.md", "/cobertura.md", "/cobertura.json", "/metrics.json")):
             return pre("deny", f"{rel} é gerado por script; não edite à mão")
-    if rel.startswith("kb/"):
+    if rel.lower().startswith("ada/kb/"):
         return pre("ask", f"K1: alteração na base de conhecimento ({rel}). Confirme se o humano aprovou este lote.")
     return None
 
@@ -184,7 +184,7 @@ def check_confluence(root: Path, cfg: dict, tool: str, ti: dict) -> dict:
         key, pol = confluence_policy(cfg, space_id=str(ti.get("spaceId") or ""))
         if pol != "manter":
             return pre("deny", f"criar página no espaço {key or ti.get('spaceId') or '(sem spaceId)'} é proibido: "
-                               "fora do INT o harness só lê. Registre o ponto em kb/apontamentos.md.")
+                               "fora do INT o harness só lê. Registre o ponto em ada/kb/apontamentos.md.")
         reg = c1_valid(root, "novo")
         if not reg:
             return pre("deny", "criar página no INT exige C1 (`ledger.py c1 --espaco INT --pagina novo --nota "
@@ -194,7 +194,7 @@ def check_confluence(root: Path, cfg: dict, tool: str, ti: dict) -> dict:
     reg = c1_valid(root, page) if page else None
     if not reg:
         return pre("deny", f"alterar ou comentar a página {page or '(sem pageId)'} exige C1 dessa página no INT. "
-                           "PO, PLAYBOOKS e outros espaços nunca são alterados: aponte a dúvida em kb/apontamentos.md.")
+                           "PO, PLAYBOOKS e outros espaços nunca são alterados: aponte a dúvida em ada/kb/apontamentos.md.")
     return pre("ask", f"C1: alterar a página {page} ({reg.get('titulo') or reg.get('espaco')}) com {tool}. "
                       "Confirme que é a página e o conteúdo mostrados na conversa.")
 
@@ -274,11 +274,11 @@ def posttool(data: dict) -> dict | None:
     sid = re.sub(r"[^A-Za-z0-9_-]", "", str(data.get("session_id") or "sem-sessao"))
     tp = data.get("transcript_path")
     u = transcript_usage(tp)
-    write_json(root / ".harness" / "metrics" / f"{sid}.json", {"session_id": sid, "atualizado": now_iso(), **u})
+    write_json(P(root, "cache", "metrics", f"{sid}.json"), {"session_id": sid, "atualizado": now_iso(), **u})
     tool = str(data.get("tool_name") or "")
     path = str((data.get("tool_input") or {}).get("file_path") or "")
-    if tool in WRITE_TOOLS and (rel_to_root(root, path) or "").startswith("kb/"):
-        st = root / ".harness" / "state" / f"kb-alterada-{sid}"
+    if tool in WRITE_TOOLS and (rel_to_root(root, path) or "").lower().startswith("ada/kb/"):
+        st = P(root, "cache", "state", f"kb-alterada-{sid}")
         st.parent.mkdir(parents=True, exist_ok=True)
         st.write_text(now_iso(), encoding="utf-8")
     did, d = active_demand(root)
@@ -286,7 +286,7 @@ def posttool(data: dict) -> dict | None:
         du = usage_since(tp, (d.get("sessao") or {}).get("inicio"))
         cfg = load_config(root)
         lim = int((cfg.get("metricas") or {}).get("alerta_saida_tokens_por_demanda") or 0)
-        write_json(root / ".harness" / "demandas" / did / "metrics.json",
+        write_json(P(root, "demandas", did, "metrics.json"),
                    {"demanda": did, "tentativa": d.get("tentativa"), "atualizado": now_iso(), **du,
                     "alerta_saida": bool(lim and du.get("output_tokens", 0) > lim)})
     return None
@@ -294,7 +294,7 @@ def posttool(data: dict) -> dict | None:
 
 # ------------------------------------------------------------------ Stop
 def _count(root: Path, key: str) -> int:
-    p = root / ".harness" / "state" / f"stop-{key}"
+    p = P(root, "cache", "state", f"stop-{key}")
     try:
         n = int(p.read_text(encoding="utf-8").strip())
     except (OSError, ValueError):
@@ -314,7 +314,7 @@ def stop(data: dict) -> dict | None:
     did, d = active_demand(root)
     mine = did and (d.get("sessao") or {}).get("session_id") == data.get("session_id")
     if mine:
-        ddir = root / ".harness" / "demandas" / did
+        ddir = P(root, "demandas", did)
         if not (ddir / "result.json").exists():
             problems.append(f"{did} em andamento sem result.json. Grave a entrega (ou status blocked com o motivo) "
                             "e rode `coverage.py " + did + "`.")
@@ -323,7 +323,7 @@ def stop(data: dict) -> dict | None:
             if not rep["ok"]:
                 problems.append(f"{did}: cobertura reprovada — " + "; ".join(rep["erros"][:6])
                                 + (" …" if len(rep["erros"]) > 6 else ""))
-    if (root / ".harness" / "state" / f"kb-alterada-{sid}").exists():
+    if P(root, "cache", "state", f"kb-alterada-{sid}").exists():
         rep = kbmod.validate_kb(root)
         if not rep["ok"]:
             problems.append("Base de Conhecimento inválida — " + "; ".join(f"{e['id']}: {e['erro']}" for e in rep["erros"][:6]))
@@ -374,7 +374,7 @@ def fail_closed(event: str, exc: BaseException) -> dict | None:
 
 def log(root: Path, event: str, data: dict, out: dict | None, err: str | None = None) -> None:
     try:
-        p = root / ".harness" / "logs" / f"hooks-{now_iso()[:10]}.jsonl"
+        p = P(root, "logs", f"hooks-{now_iso()[:10]}.jsonl")
         p.parent.mkdir(parents=True, exist_ok=True)
         ti = data.get("tool_input") or {}
         rec = {"em": now_iso(), "evento": event, "tool": data.get("tool_name"), "sessao": data.get("session_id"),

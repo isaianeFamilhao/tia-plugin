@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fila de demandas de produto do harness",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["id", "titulo", "pedido", "solicitante", "tipo", "tamanho"],
+    "properties": {
+      "id": {"type": "string", "pattern": "^D-\\d{3}$"},
+      "titulo": {"type": "string", "minLength": 5, "maxLength": 120},
+      "pedido": {"type": "string", "minLength": 20, "description": "O pedido como chegou: problema, quem sofre, o que se espera. Sem solução decidida."},
+      "solicitante": {"type": "string", "minLength": 2, "description": "Área ou papel que pediu (sem dados pessoais)."},
+      "tipo": {"enum": ["novo_epico", "refinar_epico", "historias"]},
+      "epico_jira": {"type": "string", "pattern": "^[A-Z][A-Z0-9]+-\\d+$"},
+      "tamanho": {"enum": ["P", "M", "G"]},
+      "termos": {"type": "array", "items": {"type": "string", "minLength": 3}, "maxItems": 12},
+      "fontes_extra": {"type": "array", "items": {"type": "string", "minLength": 3}},
+      "fora_de_escopo": {"type": "array", "items": {"type": "string", "minLength": 3}},
+      "prazo": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"}
+    },
+    "allOf": [
+      {
+        "if": {"properties": {"tipo": {"enum": ["refinar_epico", "historias"]}}},
+        "then": {"required": ["epico_jira"]}
+      }
+    ]
+  }
+}

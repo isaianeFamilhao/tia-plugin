@@ -155,12 +155,13 @@ def result(**over) -> dict:
 
 @pytest.fixture
 def proj(tmp_path, monkeypatch) -> Path:
-    h = tmp_path / ".harness"
-    (h / "schema").mkdir(parents=True)
-    shutil.copy(REPO / ".harness" / "config.yaml", h / "config.yaml")
-    shutil.copy(REPO / ".harness" / "schema" / "demandas.schema.json", h / "schema" / "demandas.schema.json")
-    (h / "demandas.yaml").write_text(DEMANDAS, encoding="utf-8")
-    kb = tmp_path / "kb"
+    m = tmp_path / ".ada"
+    m.mkdir()
+    shutil.copy(REPO / "modelos" / "config.padrao.yaml", m / "config.yaml")
+    a = tmp_path / "ada"
+    a.mkdir()
+    (a / "demandas.yaml").write_text(DEMANDAS, encoding="utf-8")
+    kb = a / "kb"
     (kb / "internal-tools" / "regras").mkdir(parents=True)
     (kb / "fontes").mkdir()
     (kb / "internal-tools" / "regras" / "reprocessamento-ajustes.md").write_text(RULES, encoding="utf-8")
@@ -174,7 +175,7 @@ def proj(tmp_path, monkeypatch) -> Path:
 
 @pytest.fixture
 def entrega(proj) -> Path:
-    d = proj / ".harness" / "demandas" / "D-001"
+    d = proj / "ada" / "demandas" / "D-001"
     d.mkdir(parents=True)
     (d / "epico.md").write_text(EPICO, encoding="utf-8")
     (d / "historias.md").write_text(HISTORIAS, encoding="utf-8")

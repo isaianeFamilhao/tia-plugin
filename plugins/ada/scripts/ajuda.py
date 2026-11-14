@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import REPO_ROOT  # noqa: E402
+from _common import CODE_ROOT as REPO_ROOT  # noqa: E402
 
 # Ordem de uso no dia a dia; skill nova que não estiver aqui entra no fim, em ordem alfabética.
 ORDER = ("ada", "ada-metricas", "ada-okr", "ada-report", "pm-help", "pm-demanda", "confluence", "base-atualizar")
@@ -93,7 +93,7 @@ def cell(text: str) -> str:
 
 
 def skills(root: Path = REPO_ROOT) -> list[dict]:
-    found = [s for p in sorted((root / ".claude" / "skills").glob("*/SKILL.md")) if (s := read_skill(p))]
+    found = [s for p in sorted((root / "skills").glob("*/SKILL.md")) if (s := read_skill(p))]
     rank = {n: i for i, n in enumerate(ORDER)}
     return sorted(found, key=lambda s: (rank.get(s["nome"], len(ORDER)), s["nome"]))
 

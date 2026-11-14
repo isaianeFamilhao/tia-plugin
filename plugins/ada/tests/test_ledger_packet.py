@@ -65,7 +65,7 @@ def test_pedido_mudou_depois_do_g1(proj):
     led = L(proj)
     led.sync()
     led.g1("D-001", True, None)
-    p = proj / ".harness" / "demandas.yaml"
+    p = proj / "ada" / "demandas.yaml"
     p.write_text(p.read_text(encoding="utf-8").replace("tamanho: P", "tamanho: M"), encoding="utf-8")
     led = L(proj)
     led.sync()

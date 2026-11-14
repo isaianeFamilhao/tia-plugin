@@ -1,8 +1,8 @@
-"""Memória do PM (kb/memoria-pm.md): o que a Ada aprendeu sobre como a PM gosta de trabalhar.
+"""Memória do PM (ada/kb/memoria-pm.md): o que a Ada aprendeu sobre como a PM gosta de trabalhar.
 
-    python .harness/bin/memoria.py listar [--todas]      # ativas por padrão
-    python .harness/bin/memoria.py validar
-    python .harness/bin/memoria.py proximo               # próximo ID livre (PM-NNN)
+    ada.sh memoria  listar [--todas]      # ativas por padrão
+    ada.sh memoria  validar
+    ada.sh memoria  proximo               # próximo ID livre (PM-NNN)
 
 Cada aprendizado só entra com o "sim" da PM na conversa (gate Memória). Nada é apagado: o que ela
 mandar esquecer vira `revogada`, com motivo, e deixa de ser aplicado.
@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import REPO_ROOT  # noqa: E402
+from _common import REPO_ROOT, P  # noqa: E402
 
 HEAD_RE = re.compile(r"^###\s+(PM-\d{3})\s*[·\-—:]\s*(.+?)\s*$")
 FIELD_RE = re.compile(r"^-\s+\*\*(Aprendi|Evidência|Aplicar em|Status|Desde|Revogada em|Motivo):\*\*\s*(.*)$")
@@ -25,7 +25,7 @@ ONDE = ("geral", "conversa", "épicos", "histórias", "relatórios", "dados", "c
 
 
 def path(root: Path = REPO_ROOT) -> Path:
-    return root / "kb" / "memoria-pm.md"
+    return P(root, "kb", "memoria-pm.md")
 
 
 def parse(root: Path = REPO_ROOT) -> list[dict]:
@@ -53,7 +53,7 @@ def parse(root: Path = REPO_ROOT) -> list[dict]:
 def validate(root: Path = REPO_ROOT) -> list[dict]:
     errs, seen = [], set()
     for e in parse(root):
-        where = f"kb/memoria-pm.md:{e['linha']}"
+        where = f"ada/kb/memoria-pm.md:{e['linha']}"
         c = e["campos"]
         if e["id"] in seen:
             errs.append({"id": e["id"], "onde": where, "erro": "ID duplicado"})

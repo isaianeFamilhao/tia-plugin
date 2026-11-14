@@ -31,7 +31,7 @@ PLANO = """monitores:
 
 @pytest.fixture
 def plano(proj):
-    p = proj / ".harness" / "demandas" / "plano.yaml"
+    p = proj / "ada" / "demandas" / "plano.yaml"
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(PLANO, encoding="utf-8")
     return p
@@ -87,15 +87,15 @@ MEM = """# Memória
 
 
 def test_memoria_valida_e_proximo(proj):
-    (proj / "kb" / "memoria-pm.md").write_text(MEM, encoding="utf-8")
+    (proj / "ada" / "kb" / "memoria-pm.md").write_text(MEM, encoding="utf-8")
     assert memoria.validate(proj) == []
     assert memoria.proximo(proj) == "PM-002"
 
 
 def test_memoria_revogada_exige_motivo(proj):
-    (proj / "kb" / "memoria-pm.md").write_text(MEM.replace("ativa", "revogada"), encoding="utf-8")
+    (proj / "ada" / "kb" / "memoria-pm.md").write_text(MEM.replace("ativa", "revogada"), encoding="utf-8")
     assert any("Motivo" in e["erro"] for e in memoria.validate(proj))
-    (proj / "kb" / "memoria-pm.md").write_text(MEM.replace("conversa", "planeta"), encoding="utf-8")
+    (proj / "ada" / "kb" / "memoria-pm.md").write_text(MEM.replace("conversa", "planeta"), encoding="utf-8")
     assert any("Aplicar em" in e["erro"] for e in memoria.validate(proj))
 
 

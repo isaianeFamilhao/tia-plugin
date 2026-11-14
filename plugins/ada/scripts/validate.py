@@ -1,6 +1,6 @@
-"""Valida a fila de demandas (.harness/demandas.yaml): schema + regras do harness. Zero tokens.
+"""Valida a fila de demandas (ada/demandas.yaml): schema + regras do harness. Zero tokens.
 
-    python .harness/bin/validate.py [--demandas PATH] [--json]
+    ada.sh validate  [--demandas PATH] [--json]
 
 Código 0 = válida (avisos não bloqueiam); 1 = erros; 2 = uso/arquivo ilegível.
 O agente só COMENTA ambiguidades; quem corrige a fila é o humano.
@@ -14,10 +14,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import REPO_ROOT, load_config, load_yaml  # noqa: E402
+from _common import REPO_ROOT, P, SCHEMA_DEMANDAS, load_config, load_yaml  # noqa: E402
 
-DEFAULT_DEMANDAS = REPO_ROOT / ".harness" / "demandas.yaml"
-SCHEMA = REPO_ROOT / ".harness" / "schema" / "demandas.schema.json"
+DEFAULT_DEMANDAS = P(REPO_ROOT, "fila")
+SCHEMA = SCHEMA_DEMANDAS
 # Palavras que costumam trazer a solução pronta no pedido (o harness quer o problema primeiro).
 SOLUTION_WORDS = ("criar um botão", "criar uma tela", "criar tela", "dashboard", "planilha", "integrar com", "api ")
 VAGUE_WORDS = ("melhorar", "otimizar", "agilizar", "facilitar", "intuitiv", "rápido", "rapido")

@@ -33,21 +33,21 @@ def test_escrita_fora_do_escopo(proj):
 
 
 def test_arquivos_do_humano(proj):
-    assert decision(write(proj, ".harness/demandas.yaml")) == "deny"
+    assert decision(write(proj, "ada/demandas.yaml")) == "deny"
     assert decision(write(proj, "CLAUDE.md")) == "deny"
 
 
 def test_kb_pede_confirmacao(proj):
-    assert decision(write(proj, "kb/internal-tools/regras/x.md", "Edit")) == "ask"
-    assert decision(write(proj, "kb/internal-tools/regras/x.py")) == "deny"
+    assert decision(write(proj, "ada/kb/internal-tools/regras/x.md", "Edit")) == "ask"
+    assert decision(write(proj, "ada/kb/internal-tools/regras/x.py")) == "deny"
 
 
 def test_pasta_da_demanda(proj):
-    assert decision(write(proj, ".harness/demandas/D-001/epico.md")) == "deny"  # sem demanda ativa
+    assert decision(write(proj, "ada/demandas/D-001/epico.md")) == "deny"  # sem demanda ativa
     start(proj)
-    assert write(proj, ".harness/demandas/D-001/epico.md") == {} or decision(write(proj, ".harness/demandas/D-001/epico.md")) is None
-    assert decision(write(proj, ".harness/demandas/D-002/epico.md")) == "deny"
-    assert decision(write(proj, ".harness/demandas/D-001/cobertura.md")) == "deny"
+    assert write(proj, "ada/demandas/D-001/epico.md") == {} or decision(write(proj, "ada/demandas/D-001/epico.md")) is None
+    assert decision(write(proj, "ada/demandas/D-002/epico.md")) == "deny"
+    assert decision(write(proj, "ada/demandas/D-001/cobertura.md")) == "deny"
 
 
 def test_atlassian_escrita(proj):
@@ -151,8 +151,8 @@ def test_stop_passa_com_entrega_ok(proj, entrega):
 
 def test_stop_confere_kb_alterada(proj):
     hooks.run("posttool", {"session_id": "s-9", "tool_name": "Write",
-                           "tool_input": {"file_path": str(proj / "kb/internal-tools/regras/reprocessamento-ajustes.md")}})
-    f = proj / "kb/internal-tools/regras/reprocessamento-ajustes.md"
+                           "tool_input": {"file_path": str(proj / "ada/kb/internal-tools/regras/reprocessamento-ajustes.md")}})
+    f = proj / "ada/kb/internal-tools/regras/reprocessamento-ajustes.md"
     f.write_text(f.read_text(encoding="utf-8").replace("- **Fontes:** SRC-IT-001\n", "- **Fontes:** SRC-IT-404\n", 1),
                  encoding="utf-8")
     out = hooks.run("stop", {"session_id": "s-9"})
@@ -176,7 +176,7 @@ def test_fail_closed(proj, monkeypatch):
 def test_metricas_da_transcricao(proj):
     tr = Path(__file__).parent / "fixtures" / "contract" / "transcript_sample.jsonl"
     hooks.run("posttool", {"session_id": "s-7", "transcript_path": str(tr), "tool_name": "Read", "tool_input": {}})
-    m = json.loads((proj / ".harness" / "metrics" / "s-7.json").read_text(encoding="utf-8"))
+    m = json.loads((proj / ".ada" / "cache" / "metrics" / "s-7.json").read_text(encoding="utf-8"))
     assert m["messages_with_usage"] > 0 and m["output_tokens"] > 0
 
 

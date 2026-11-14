@@ -1,7 +1,7 @@
 """OKRs: esquema e avaliador pragmático (skill /ada-okr). Zero tokens.
 
-    python .harness/bin/okr.py validar [ARQUIVO]      # padrão: kb/okrs.yaml (rascunhos podem estar em .harness/propostas/)
-    python .harness/bin/okr.py listar [--ativos]
+    ada.sh okr  validar [ARQUIVO]      # padrão: ada/kb/okrs.yaml (rascunhos podem estar em ada/propostas/)
+    ada.sh okr  listar [--ativos]
 
 Reprova o que quebra o OKR (KR que é entrega, KR de outcome sem meta, estrutura inválida). Avisa o que
 merece conversa, sem dogma: foco (≤3 objetivos, 2–4 KRs), tensão saudável, baseline, momento do time,
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import REPO_ROOT, load_yaml  # noqa: E402
+from _common import REPO_ROOT, P, load_yaml  # noqa: E402
 
 MOMENTOS = ("crescimento", "retencao", "descoberta", "eficiencia", "fundacao")
 MODOS = ("comprometido", "aspiracional")
@@ -108,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("validar")
-    s.add_argument("arquivo", nargs="?", type=Path, default=REPO_ROOT / "kb" / "okrs.yaml")
+    s.add_argument("arquivo", nargs="?", type=Path, default=P(REPO_ROOT, "kb", "okrs.yaml"))
     s.add_argument("--json", action="store_true")
     s = sub.add_parser("listar")
     s.add_argument("--ativos", action="store_true")
@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
             for w in rep["avisos"]:
                 print(f"  AVISO {w}")
         return 0 if rep["ok"] else 1
-    ciclos = [c for c in load(REPO_ROOT / "kb" / "okrs.yaml") if not a.ativos or c.get("status") == "ativo"]
+    ciclos = [c for c in load(P(REPO_ROOT, "kb", "okrs.yaml")) if not a.ativos or c.get("status") == "ativo"]
     for c in ciclos:
         print(f"{c.get('ciclo')} · {c.get('time')} ({c.get('status')}, {c.get('modo')})")
         for o in c.get("objetivos") or []:

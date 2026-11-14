@@ -1,17 +1,17 @@
 """Monitoramento de métricas: monitores ativados pela PM (gate M1), leituras e avaliador determinístico.
 
-    python .harness/bin/metricas.py validar
-    python .harness/bin/metricas.py ativar --arquivo <plano.yaml> --nota "<resposta literal da PM>"
-    python .harness/bin/metricas.py ativos [--json]            # monitores ativos e quais estão devidos
-    python .harness/bin/metricas.py avaliar --monitor M-001 --valor 12.5 [--data AAAA-MM-DD] [--fonte X] [--consulta "..."]
-    python .harness/bin/metricas.py alertas [--dias 7] [--json]
-    python .harness/bin/metricas.py resumo [--dias 7] [--json]  # base dos relatórios diário e semanal
-    python .harness/bin/metricas.py encerrar --monitor M-001 --nota "<motivo>"
+    ada.sh metricas  validar
+    ada.sh metricas  ativar --arquivo <plano.yaml> --nota "<resposta literal da PM>"
+    ada.sh metricas  ativos [--json]            # monitores ativos e quais estão devidos
+    ada.sh metricas  avaliar --monitor M-001 --valor 12.5 [--data AAAA-MM-DD] [--fonte X] [--consulta "..."]
+    ada.sh metricas  alertas [--dias 7] [--json]
+    ada.sh metricas  resumo [--dias 7] [--json]  # base dos relatórios diário e semanal
+    ada.sh metricas  encerrar --monitor M-001 --nota "<motivo>"
 
 Quem busca o número é a Ada, na fonte que estiver conectada (MCP ou CLI), sempre só leitura. Quem decide
 se é alerta é este script, pela regra do monitor — não a impressão do modelo.
-Arquivos: `.harness/monitoramento/monitores.yaml` e `leituras.jsonl` (só por este script);
-`kb/metricas.yaml` e `kb/okrs.yaml` (opcionais, aprendidos com o uso).
+Arquivos: `.ada/monitoramento/monitores.yaml` e `leituras.jsonl` (só por este script);
+`ada/kb/metricas.yaml` e `ada/kb/okrs.yaml` (opcionais, aprendidos com o uso).
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import REPO_ROOT, atomic_write_text, load_yaml, now_iso, today  # noqa: E402
+from _common import REPO_ROOT, P, atomic_write_text, load_yaml, now_iso, today  # noqa: E402
 
 DIRECOES = ("menor_melhor", "maior_melhor")
 CADENCIAS = {"diaria": 1, "semanal": 7}
@@ -34,7 +34,7 @@ class MetricasError(Exception):
 
 
 def root_dir(root: Path) -> Path:
-    return root / ".harness" / "monitoramento"
+    return P(root, "monitoramento")
 
 
 def load_monitors(root: Path) -> list[dict]:
@@ -107,27 +107,27 @@ def validate(root: Path = REPO_ROOT) -> list[str]:
             errs.append(f"{mid}: ID duplicado")
         ids.add(mid)
         errs += [f"{mid}: {e}" for e in validate_monitor(m)]
-    okrs = root / "kb" / "okrs.yaml"
+    okrs = P(root, "kb", "okrs.yaml")
     if okrs.exists():
         import okr
 
         try:
-            errs += [f"kb/okrs.yaml: {e}" for e in okr.validar(okr.load(okrs))["erros"]]
+            errs += [f"ada/kb/okrs.yaml: {e}" for e in okr.validar(okr.load(okrs))["erros"]]
         except Exception as e:  # noqa: BLE001
-            errs.append(f"kb/okrs.yaml: ilegível ({str(e).splitlines()[0]})")
+            errs.append(f"ada/kb/okrs.yaml: ilegível ({str(e).splitlines()[0]})")
     for f, key in (("metricas.yaml", "id"),):
-        p = root / "kb" / f
+        p = P(root, "kb", f)
         if p.exists():
             try:
                 data = load_yaml(p)
             except Exception as e:  # noqa: BLE001
-                errs.append(f"kb/{f}: YAML inválido ({str(e).splitlines()[0]})")
+                errs.append(f"ada/kb/{f}: YAML inválido ({str(e).splitlines()[0]})")
                 continue
             if data and not isinstance(data, list):
-                errs.append(f"kb/{f}: deve ser uma lista")
+                errs.append(f"ada/kb/{f}: deve ser uma lista")
             for i, item in enumerate(data or []):
                 if not isinstance(item, dict) or not item.get(key):
-                    errs.append(f"kb/{f}[{i}]: campo `{key}` obrigatório")
+                    errs.append(f"ada/kb/{f}[{i}]: campo `{key}` obrigatório")
     return errs
 
 

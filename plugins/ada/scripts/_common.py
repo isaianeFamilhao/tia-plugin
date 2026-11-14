@@ -12,11 +12,78 @@ numa sessão só, supervisionada pelo humano.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# ------------------------------------------------------------------ raízes
+# Motor no plugin, conteúdo no workspace.
+#   CODE_ROOT: a pasta do plugin (scripts/, skills/, modelos/, schema/). Só leitura.
+#   DATA_ROOT: o workspace da PM, marcado por `.ada/config.yaml`.
+# Resolução do workspace: ADA_ROOT/HARNESS_ROOT (testes) > CLAUDE_PROJECT_DIR > cwd (sobe as pastas).
+CODE_ROOT = Path(__file__).resolve().parents[1]
+MARCADOR = Path(".ada") / "config.yaml"
+
+
+def is_workspace(root) -> bool:
+    return bool(root) and (Path(root) / MARCADOR).is_file()
+
+
+def find_data_root(cwd=None) -> Path | None:
+    """Workspace da Ada, ou None. ADA_ROOT/HARNESS_ROOT valem mesmo sem marcador (o chamador confere)."""
+    for env in ("ADA_ROOT", "HARNESS_ROOT"):
+        if os.environ.get(env):
+            return Path(os.environ[env])
+    if os.environ.get("CLAUDE_PROJECT_DIR"):
+        p = Path(os.environ["CLAUDE_PROJECT_DIR"])
+        return p if is_workspace(p) else None
+    here = Path(cwd or Path.cwd()).resolve()
+    for p in (here, *here.parents):
+        if is_workspace(p):
+            return p
+    return None
+
+
+DATA_ROOT = find_data_root() or Path.cwd()
+REPO_ROOT = DATA_ROOT  # nome antigo, mantido nos scripts herdados
+
+
+def require_workspace(root: Path | None = None) -> Path:
+    """Para os `main()`: sem marcador, explica e sai (código 2)."""
+    root = Path(root or DATA_ROOT)
+    if not is_workspace(root):
+        print(f"[ada] {root} não é um workspace da Ada (falta {MARCADOR.as_posix()}). "
+              "Diga \"Ada, configurar\" para criar.", file=sys.stderr)
+        raise SystemExit(2)
+    return root
+
+
+# Layout do workspace: `ada/` é conteúdo (gente lê e revisa); `.ada/` é máquina (só scripts).
+REL = {
+    "kb": "ada/kb",
+    "fila": "ada/demandas.yaml",
+    "fila_exemplo": "ada/demandas.exemplo.yaml",
+    "demandas": "ada/demandas",
+    "relatorios": "ada/relatorios",
+    "propostas": "ada/propostas",
+    "memoria_time": "ada/memoria/time",
+    "memoria_pessoal": "ada/memoria/pessoal",
+    "config": ".ada/config.yaml",
+    "ledger": ".ada/ledger.json",
+    "monitoramento": ".ada/monitoramento",
+    "logs": ".ada/logs",
+    "cache": ".ada/cache",
+}
+
+
+def P(root, key: str, *parts: str) -> Path:
+    """Caminho de `key` (ver REL) no workspace `root`."""
+    return Path(root or DATA_ROOT).joinpath(*REL[key].split("/"), *parts)
+
+
+SCHEMA_DEMANDAS = CODE_ROOT / "schema" / "demandas.schema.json"
+MODELOS = CODE_ROOT / "modelos"
 
 # Saída sempre em UTF-8 (o console do Windows usa cp1252/cp850 e quebrava os acentos), sem precisar
 # de PYTHONIOENCODING no comando — o prefixo fazia o hook pedir confirmação à toa.
@@ -25,7 +92,6 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):
         pass
-HARNESS = REPO_ROOT / ".harness"
 DEFAULT_CHARS_PER_TOKEN = 3.0  # calibrado na F3 do harness-lean (app desktop)
 
 DEMAND_ID_RE = re.compile(r"^D-\d{3}$")
@@ -145,7 +211,7 @@ def today() -> str:
 
 
 def load_config(root: Path | None = None) -> dict:
-    return load_yaml((root or REPO_ROOT) / ".harness" / "config.yaml") or {}
+    return load_yaml(P(root, "config")) or {}
 
 
 # ------------------------------------------------------------------ tokens [E]

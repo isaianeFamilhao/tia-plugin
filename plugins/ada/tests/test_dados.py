@@ -54,10 +54,10 @@ def test_ferramenta_que_nao_e_de_dados_nao_e_afetada(proj):
 
 def test_escopo_relatorios_propostas_e_monitoramento(proj):
     w = lambda rel: decision(hooks.run("pretool", {"tool_name": "Write", "tool_input": {"file_path": str(proj / rel)}}))
-    assert w(".harness/relatorios/2026-11-14-diario.md") is None
-    assert w(".harness/propostas/checkout.yaml") is None
-    assert w(".harness/monitoramento/monitores.yaml") == "deny"
-    assert sh("echo x >> .harness/monitoramento/leituras.jsonl") == "deny"
+    assert w("ada/relatorios/2026-11-14-diario.md") is None
+    assert w("ada/propostas/checkout.yaml") is None
+    assert w(".ada/monitoramento/monitores.yaml") == "deny"
+    assert sh("echo x >> .ada/monitoramento/leituras.jsonl") == "deny"
 
 
 def test_rascunho_temporario_fora_do_projeto(proj):

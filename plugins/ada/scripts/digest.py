@@ -1,6 +1,6 @@
-"""Digest rolante (.harness/digest.md): estado da Base de Conhecimento + últimas demandas aceitas. Reescrito, nunca anexado.
+"""Digest rolante (.ada/cache/digest.md): estado da Base de Conhecimento + últimas demandas aceitas. Reescrito, nunca anexado.
 
-    python .harness/bin/digest.py
+    ada.sh digest 
 """
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import kb as kbmod  # noqa: E402
-from _common import REPO_ROOT, atomic_write_text, fit_tokens, load_config, read_json  # noqa: E402
+from _common import REPO_ROOT, P, require_workspace, atomic_write_text, fit_tokens, load_config, read_json  # noqa: E402
 
 DONE = ("accepted", "publish_approved", "published")
 
@@ -18,7 +18,7 @@ def render(root: Path) -> str:
     cfg = load_config(root)
     dc = cfg.get("digest") or {}
     st = kbmod.stats(root)
-    led = read_json(root / ".harness" / "ledger.json") or {}
+    led = read_json(P(root, "ledger")) or {}
     done = []
     for did, d in (led.get("demandas") or {}).items():
         if d.get("state") in DONE:
@@ -47,9 +47,9 @@ def render(root: Path) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    root = REPO_ROOT
-    atomic_write_text(root / ".harness" / "digest.md", render(root))
-    print(".harness/digest.md reescrito")
+    root = require_workspace()
+    atomic_write_text(P(root, "cache", "digest.md"), render(root))
+    print(".ada/cache/digest.md reescrito")
     return 0
 
 
