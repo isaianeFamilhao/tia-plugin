@@ -1,18 +1,21 @@
-"""Hooks do harness de produto (chamados por hook.sh). Lê o JSON do evento no stdin, imprime a decisão.
+"""Hooks da Ada (plugin), chamados por hook.sh só DENTRO de um workspace (com .ada/config.yaml).
+Lê o JSON do evento no stdin, imprime a decisão.
 
-    <json> | python hooks.py <session_start|pretool|posttool|stop>
+    <json> | python hooks.py <session_start|prompt|pretool|posttool|stop>
 
-Política (README, "Controles"):
-- PreToolUse: escrita só em kb/** e .harness/demandas/** (md/yaml/json); arquivos do humano negados;
-  pasta de outra demanda negada enquanto uma está ativa; kb/** pede confirmação (K1);
-  escrita no Jira/Confluence negada sem G3, e com G3 pede confirmação a cada chamada;
-  shell: nega gravar no próprio harness; pergunta só o que é perigoso (apagar, instalar, git push/commit,
-  enviar dados); o resto fica com as permissões normais do Claude Code.
-- PostToolUse: métricas da sessão e da demanda ativa a partir da transcrição; marca Base de Conhecimento alterada.
-- Stop: com demanda ativa nesta sessão, só encerra com entrega aprovada pela cobertura
-  (ou `blocked` com motivo); com kb alterada, só encerra com `kb.py validar` OK. Máx. 3 bloqueios.
-- SessionStart: injeta o session_id, a demanda ativa e o que está pronto.
-Fail-closed: erro inesperado nega a ação (PreToolUse) ou bloqueia (Stop), salvo HARNESS_DEV=1.
+Política (README do plugin, "Proteções"):
+- PreToolUse: escrita do agente só em ada/** (md/yaml/yml/json), exceto ada/demandas.yaml e ada/kb/README.md;
+  .ada/** só por script; CLAUDE.md, settings e dados do plugin negados; pasta de outra demanda negada enquanto
+  uma está ativa; ada/kb/** pede confirmação (K1); ada/memoria/** pede confirmação (gate Memória);
+  escrita no Jira/Confluence negada sem G3 (e com G3 pede confirmação a cada chamada); Confluence por espaço;
+  fontes de dados só leitura; shell: nega gravar em .ada/, CLAUDE.md e settings e nega desligar a fiscalização
+  (claude plugin disable|uninstall, enabledPlugins, disableAllHooks, HARNESS_DEV); pergunta o que é perigoso.
+- UserPromptSubmit: "Ada, <verbo>" no início vira "invoque a skill ada:<skill>" (aliases.py).
+- PostToolUse: métricas da sessão e da demanda ativa; marca Base de Conhecimento alterada.
+- Stop: com demanda ativa nesta sessão, só encerra com entrega aprovada pela cobertura (ou `blocked` com motivo);
+  com Base alterada, só encerra com `kb.py validar` OK. Máx. 3 bloqueios.
+- SessionStart: princípios e gates, índice da Memória, pessoal.md, session_id, demanda ativa.
+Fail-closed (só dentro do workspace): erro inesperado nega a ação (PreToolUse), salvo HARNESS_DEV=1/ADA_DEV=1.
 """
 from __future__ import annotations
 
@@ -23,16 +26,16 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import (REPO_ROOT, P, find_data_root, load_config, norm_path, now_iso, path_allowed,  # noqa: E402
+from _common import (CODE_ROOT, REPO_ROOT, P, find_data_root, is_workspace, load_config, norm_path, now_iso, path_allowed,  # noqa: E402
                      read_json, rel_to_root, transcript_usage, write_json)
 
-EVENTS = ("session_start", "pretool", "posttool", "stop")
+EVENTS = ("session_start", "prompt", "pretool", "posttool", "stop")
 WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
 SHELL_TOOLS = ("Bash", "PowerShell")
 STOP_MAX_BLOCKS = 3
-PREFIX = "[harness]"
+PREFIX = "[ada]"
 SAFE_SHELL_RE = re.compile(
-    r"""(?ix)^(?:&\s*)?["']?[^"'\s]*python(?:\.exe)?["']?\s+(?:-I\s+)?\.?[/\\]?\.harness[/\\]bin[/\\][a-z_]+\.py\b"""
+    r"""(?ix)^(?:&\s*)?ADA_SCRIPT\b"""
     r"""|^git\s+(?:status|log|diff|show|ls-files|branch)\b"""
     r"""|^(?:ls|dir|pwd|cd|cat|type|head|tail|wc|sort|uniq|echo|grep|rg|findstr|Get-ChildItem|Get-Content"""
     r"""|Get-Location|Set-Location|Select-String|Select-Object|Sort-Object|Measure-Object|Write-Output|Test-Path)\b""")
@@ -40,17 +43,23 @@ SAFE_SHELL_RE = re.compile(
 UNSAFE_SHELL_RE = re.compile(r"`|\$\(|(?<![0-9])>(?!\s*&\s*1)|[0-9]>(?!&1|\s*\$null|\s*/dev/null)")
 ENV_PREFIX_RE = re.compile(r"^(?:[A-Z_][A-Z0-9_]*=\S*\s+)+")          # VAR=valor comando (bash)
 PS_ENV_RE = re.compile(r"(?i)^\$env:PYTHON[A-Z]*\s*=\s*\S+$")         # $env:PYTHONIOENCODING='utf-8'
+# Lançador da Ada: `bash "<plugin>/scripts/ada.sh" <script> ...` (aspas opcionais; `&` do PowerShell aceito).
+LAUNCH_RE = re.compile(r"""(?i)(?:bash(?:\.exe)?\s+)?(?:"(?P<q>[^"]*?ada\.sh)"|'(?P<s>[^']*?ada\.sh)'|(?P<p>[^"'\s]*?ada\.sh))(?=\s|$)""")
+# Desligar a fiscalização: só a humana, fora da sessão.
+DISABLE_RE = re.compile(
+    r"(?i)\bclaude(?:\.exe)?\s+plugins?\s+(?:disable|uninstall|remove|rm)\b|enabledPlugins|disableAllHooks"
+    r"|HARNESS_DEV|ADA_DEV|manutencao\.py|\.claude[/\\]settings|hook\.sh|hooks\.json")
 
 
 # Política de shell = lista do que é PERIGOSO (o resto fica com as permissões do Claude Code).
-# 1) Gravar no próprio harness pelo shell: negado (Write/Edit já são negados fora do escopo).
+# 1) Gravar em .ada/, CLAUDE.md, settings ou no plugin pelo shell: negado (Write/Edit já são negados fora do escopo).
 SHELL_WRITE_RE = re.compile(
     r"(?ix)(?<![0-9&])>{1,2}(?!\s*&)|\btee\b|\bsed\s+(?:-[a-z]*\s+)*-i|\b(?:cp|mv|rm|del|rmdir|touch|mkdir|ln)\b"
     r"|\b(?:Out-File|Set-Content|Add-Content|Copy-Item|Move-Item|Remove-Item|New-Item|Rename-Item)\b"
     r"|\bgit\s+(?:checkout|restore|rm|mv|reset|clean|stash)\b|open\([^)]*['\"][wa]")
 PROTECTED_PATH_RE = re.compile(
-    r"(?i)(?:^|[\s\"'/\\])\.ada[/\\]|ada[/\\]demandas\.yaml|\.harness[/\\]|\.claude[/\\]|CLAUDE\.md"
-    r"|kb[/\\]README\.md|(?:^|[\s\"'/\\])tests[/\\]|requirements\.txt|\.github[/\\]")
+    r"(?i)(?:^|[\s\"'/\\=])\.ada(?:[/\\]|\b)|ada[/\\]demandas\.yaml|ada[/\\]kb[/\\]README\.md|\.claude[/\\]|CLAUDE\.md"
+    r"|plugins[/\\](?:cache|data)[/\\]")
 # 2) Perigoso em qualquer lugar: pede confirmação a cada vez.
 SHELL_RISKY = [
     (re.compile(r"(?i)\b(?:rm|del|rmdir|Remove-Item|rd)\b|\bgit\s+clean\b|\bgit\s+reset\s+--hard\b"), "apaga arquivos"),
@@ -64,9 +73,22 @@ SHELL_RISKY = [
 ]
 
 
+def is_launcher(path: str) -> bool:
+    """O `ada.sh` deste plugin (não um homônimo qualquer)."""
+    return norm_path(path).lower() == norm_path(CODE_ROOT / "scripts" / "ada.sh").lower()
+
+
+def strip_launcher(cmd: str) -> str:
+    """Troca as chamadas ao lançador da Ada por ADA_SCRIPT (executar script não é gravar em .ada/)."""
+    def rep(m: re.Match) -> str:
+        path = m.group("q") or m.group("s") or m.group("p")
+        return "ADA_SCRIPT" if is_launcher(path) else m.group(0)
+    return LAUNCH_RE.sub(rep, cmd)
+
+
 def shell_is_safe(cmd: str) -> bool:
-    """Seguro = cada parte (separada por ; && || |) é script do harness ou leitura simples."""
-    cmd = cmd.replace("2>&1", "")
+    """Seguro = cada parte (separada por ; && || |) é script da Ada ou leitura simples."""
+    cmd = strip_launcher(cmd.replace("2>&1", ""))
     if not cmd.strip() or UNSAFE_SHELL_RE.search(cmd):
         return False
     for seg in re.split(r"&&|\|\||;|\||\r?\n", cmd):
@@ -81,7 +103,7 @@ def shell_is_safe(cmd: str) -> bool:
 
 
 def root_of(data: dict) -> Path:
-    """Raiz do projeto: a do próprio script (HARNESS_ROOT só para testes)."""
+    """Workspace: ADA_ROOT/HARNESS_ROOT > CLAUDE_PROJECT_DIR > cwd do evento (sobe as pastas)."""
     return find_data_root(data.get("cwd")) or Path(data.get("cwd") or REPO_ROOT)
 
 
@@ -120,13 +142,18 @@ def check_write(root: Path, cfg: dict, path: str) -> dict | None:
         if tmp and norm_path(path).lower().startswith(tmp + "/"):
             return None  # rascunho temporário (ex.: artifact baixado): segue as permissões normais
         return pre("deny", f"escrita fora do projeto negada: {path}")
-    if rel.lower().startswith(".ada/monitoramento/"):
-        return pre("deny", "monitores e leituras mudam só pelo `metricas.py` (ativar, avaliar, encerrar)")
+    low = rel.lower()
+    if low.startswith(".ada/monitoramento/"):
+        return pre("deny", "monitores e leituras mudam só pelo script `metricas` (ativar, avaliar, encerrar)")
+    if low == ".ada" or low.startswith(".ada/"):
+        return pre("deny", f"{rel}: .ada/ é da máquina e muda só pelos scripts da Ada (o config, só a humana edita)")
+    if low == "claude.md" or low.endswith("/claude.md") or low.startswith(".claude/"):
+        return pre("deny", f"{rel}: instruções e settings do projeto são editados só pela humana")
     if path_allowed(rel, esc.get("somente_humano") or []):
         return pre("deny", f"{rel} é editado só pelo humano: proponha a mudança na conversa")
     if not path_allowed(rel, esc.get("caminhos") or []):
         return pre("deny", f"escrita fora do escopo ({', '.join(esc.get('caminhos') or [])}) negada: {rel}. "
-                           "O harness de produto não escreve código nem altera o próprio harness.")
+                           "A Ada não escreve código nem altera o próprio plugin.")
     ext = Path(rel).suffix.lower()
     if ext not in [e.lower() for e in esc.get("extensoes") or []]:
         return pre("deny", f"extensão {ext or '(nenhuma)'} não permitida em {rel}")
@@ -134,13 +161,15 @@ def check_write(root: Path, cfg: dict, path: str) -> dict | None:
     if m:
         did, _ = active_demand(root)
         if did is None:
-            return pre("deny", f"nenhuma demanda em andamento: rode `ledger.py iniciar {m.group(1)}` depois do G1")
+            return pre("deny", f"nenhuma demanda em andamento: rode `ada.sh ledger iniciar {m.group(1)}` depois do G1")
         if m.group(1).upper() != did:
             return pre("deny", f"{did} está em andamento: não edite a pasta de {m.group(1)}")
         if rel.endswith(("/packet.md", "/cobertura.md", "/cobertura.json", "/metrics.json")):
             return pre("deny", f"{rel} é gerado por script; não edite à mão")
-    if rel.lower().startswith("ada/kb/"):
-        return pre("ask", f"K1: alteração na base de conhecimento ({rel}). Confirme se o humano aprovou este lote.")
+    if low.startswith("ada/kb/"):
+        return pre("ask", f"K1: alteração na Base de Conhecimento ({rel}). Confirme se a humana aprovou este lote.")
+    if low.startswith("ada/memoria/"):
+        return pre("ask", f"Memória: gravar aprendizado ({rel}). Confirme que a humana disse sim e onde guardar.")
     return None
 
 
@@ -184,7 +213,7 @@ def check_confluence(root: Path, cfg: dict, tool: str, ti: dict) -> dict:
         key, pol = confluence_policy(cfg, space_id=str(ti.get("spaceId") or ""))
         if pol != "manter":
             return pre("deny", f"criar página no espaço {key or ti.get('spaceId') or '(sem spaceId)'} é proibido: "
-                               "fora do INT o harness só lê. Registre o ponto em ada/kb/apontamentos.md.")
+                               "fora do espaço marcado `manter` a Ada só lê. Registre o ponto em ada/kb/apontamentos.md.")
         reg = c1_valid(root, "novo")
         if not reg:
             return pre("deny", "criar página no INT exige C1 (`ledger.py c1 --espaco INT --pagina novo --nota "
@@ -218,25 +247,25 @@ def pretool(data: dict) -> dict | None:
         ok = [did for did, d in led.items() if d.get("state") == "publish_approved"]
         if not ok:
             return pre("deny", "escrita no Jira/Confluence exige o G3 da demanda (`ledger.py g3`). "
-                               "Até lá, o harness só lê.")
+                               "Até lá, a Ada só lê.")
         return pre("ask", f"publicação de {', '.join(ok)} no Jira/Confluence ({tool}): confirme esta escrita.")
     if tool in SHELL_TOOLS:
         cmd = str(ti.get("command") or "")
-        if "ledger.json" in cmd and "ledger.py" not in cmd:
-            return pre("deny", "o ledger só muda por `ledger.py`")
-        if re.search(r"(?i)manutencao\.py|\.claude[/\\]settings|hook\.sh|HARNESS_DEV", cmd):
-            return pre("deny", "só a humana liga ou desliga a fiscalização: ela roda "
-                               "`.harness/bin/manutencao.py on|off` no próprio terminal.")
-        # Executar um script do harness não é gravar nele: tira essa menção antes de procurar caminho protegido.
-        alvo = re.sub(r"(?i)python(?:\.exe)?[\"']?\s+(?:-I\s+)?[\"']?\.?[/\\]?\.harness[/\\]bin[/\\]\w+\.py", "python SCRIPT", cmd)
+        alvo = strip_launcher(cmd)
+        if "ledger.json" in alvo:
+            return pre("deny", "o ledger só muda pelo script `ledger` (ada.sh ledger …)")
+        if DISABLE_RE.search(alvo):
+            return pre("deny", "desligar ou contornar a fiscalização da Ada (desativar o plugin, hooks, settings, "
+                               "HARNESS_DEV) é decisão só da humana, no terminal dela.")
+        # Executar um script da Ada não é gravar em .ada/: o lançador já saiu de `alvo`.
         if SHELL_WRITE_RE.search(alvo) and PROTECTED_PATH_RE.search(alvo):
-            return pre("deny", "o shell não grava no próprio harness (scripts, skills, settings, CLAUDE.md, "
-                               "config, fila, testes). Isso exige o modo manutenção, que só a humana liga.")
+            return pre("deny", "o shell não grava em .ada/, na fila, no contrato da Base, em CLAUDE.md, em settings "
+                               "nem nos arquivos do plugin. Use os scripts da Ada ou proponha a mudança à humana.")
         risky = next((why for rx, why in SHELL_RISKY if rx.search(cmd)), None)
         if risky:
             return pre("ask", f"{risky}: confirme este comando.")
         if shell_is_safe(cmd):
-            return pre("allow", "script do harness ou leitura simples")
+            return pre("allow", "script da Ada ou leitura simples")
         return None  # o resto segue as permissões normais do Claude Code ("permitir sempre" funciona)
     return None
 
@@ -356,11 +385,23 @@ def session_start(data: dict) -> dict | None:
     return context("SessionStart", "\n".join(lines))
 
 
-HANDLERS = {"session_start": session_start, "pretool": pretool, "posttool": posttool, "stop": stop}
+def prompt(data: dict) -> dict | None:
+    """UserPromptSubmit: "Ada, <verbo>" no início da mensagem → invocar a skill do plugin."""
+    import aliases
+
+    skill = aliases.resolver(str(data.get("prompt") or ""), root_of(data))
+    if not skill:
+        return None
+    nome, arg = skill
+    extra = f" com o argumento `{arg}`" if arg else ""
+    return context("UserPromptSubmit", f"{PREFIX} Chamado da Ada: invoque a skill ada:{nome}{extra} antes de responder.")
+
+
+HANDLERS = {"session_start": session_start, "prompt": prompt, "pretool": pretool, "posttool": posttool, "stop": stop}
 
 
 def fail_closed(event: str, exc: BaseException) -> dict | None:
-    if os.environ.get("HARNESS_DEV") == "1":
+    if dev_mode():
         return None
     reason = f"erro no hook ({type(exc).__name__}: {str(exc)[:160]}): ação negada (fail-closed)."
     if event == "pretool":
@@ -387,8 +428,14 @@ def log(root: Path, event: str, data: dict, out: dict | None, err: str | None = 
         pass
 
 
+def dev_mode() -> bool:
+    return os.environ.get("HARNESS_DEV") == "1" or os.environ.get("ADA_DEV") == "1"
+
+
 def run(event: str, data: dict) -> dict | None:
-    if os.environ.get("HARNESS_DEV") == "1" and event in ("pretool", "stop"):
+    if not is_workspace(root_of(data)):
+        return None  # fora de workspace da Ada: silêncio (o hook.sh já filtra; aqui é a segunda trava)
+    if dev_mode() and event in ("pretool", "stop"):
         return None
     try:
         out = HANDLERS[event](data)
