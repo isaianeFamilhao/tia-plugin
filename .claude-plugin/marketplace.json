@@ -1,18 +1,18 @@
 {
-  "name": "ada-marketplace",
+  "name": "tia-marketplace",
   "owner": {
     "name": "Time de Produto"
   },
   "metadata": {
-    "description": "Marketplace interno da Ada, assistente de produto.",
-    "version": "0.1.1"
+    "description": "Marketplace interno da Tia, assistente de produto.",
+    "version": "0.2.0"
   },
   "plugins": [
     {
-      "name": "ada",
-      "source": "./plugins/ada",
-      "description": "Ada: transforma pedidos em épicos e histórias com critérios que cobrem as regras de negócio e acompanha nos dados se a entrega moveu as métricas.",
-      "version": "0.1.1"
+      "name": "tia",
+      "source": "./plugins/tia",
+      "description": "Tia: transforma pedidos em épicos e histórias com critérios que cobrem as regras de negócio e acompanha nos dados se a entrega moveu as métricas.",
+      "version": "0.2.0"
     }
   ]
 }

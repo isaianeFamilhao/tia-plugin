@@ -1,0 +1,93 @@
+# Configuração PADRÃO da Tia (no plugin). Não edite no workspace: ajuste por sobreposição em .tia/config.yaml.
+#
+# Três categorias:
+#   1. INEGOCIÁVEL (só aqui; o workspace não sobrepõe): escopo_escrita, regex de escrita no Jira/Confluence,
+#      dados.escrita_regex, cobertura.exigir_regra_coberta, cobertura.formato_criterio. Ver INEGOCIAVEIS em _common.py.
+#   2. DEFAULT com ajuste por sobreposição (deep merge; lista substitui lista): tamanhos, max_retrabalho,
+#      palavras_vagas, dados (mcp_regex, clis, acao_regex), confluence.c1_validade_horas, pacote, digest, metricas.
+#   3. DO TIME (copiado no "Tia, configurar" a partir de modelos/config.time.yaml; depois só a humana edita):
+#      atlassian (site, cloud_id, jira_projeto, espaços), confluence.espacos, modelos.
+version: 1
+
+# Tamanho da demanda (definido pelo humano na fila; confirmado no G1).
+# Maior que G: dividir em mais de uma demanda (um épico por demanda).
+tamanhos:
+  P: {max_historias: 3, max_criterios_por_historia: 5}
+  M: {max_historias: 6, max_criterios_por_historia: 6}
+  G: {max_historias: 10, max_criterios_por_historia: 7}
+
+# Retrabalho no G2 (motivo obrigatório). Depois do limite, a demanda volta para ser dividida.
+max_retrabalho: 2
+
+# Escopo de escrita do agente (hook PreToolUse). Tudo fora disso é negado: o harness de produto
+# não escreve código de aplicação. Extensões permitidas valem dentro desses caminhos.
+escopo_escrita:
+  caminhos:
+    - "tia/**"
+  extensoes: [".md", ".yaml", ".yml", ".json"]
+  # Arquivos que só o humano edita (o agente propõe a mudança na conversa).
+  somente_humano:
+    - "tia/demandas.yaml"
+    - "tia/kb/README.md"
+
+# Integração Atlassian (hook PreToolUse). Leitura livre; escrita só depois do G3 da demanda ativa,
+# e mesmo assim cada chamada pede confirmação humana (ask).
+atlassian:
+  # Prefixos de nome de ferramenta MCP que escrevem no Jira/Confluence.
+  ferramentas_escrita_regex: "(?i)__(create|edit|update|transition|add|delete)[A-Za-z]*(Jira|Confluence|Issue|Page|Comment|Worklog|Compass|Link)"
+  # Subconjunto que escreve no Confluence (página ou comentário): segue a política por espaço abaixo.
+  confluence_escrita_regex: "(?i)__(create|update|edit|delete)Confluence"
+
+# Política por espaço do Confluence (hook PreToolUse + skill /confluence).
+#   manter          → consultar livre; alterar só com C1 da página (resposta literal da humana, validade
+#                     limitada) e cada escrita ainda pede confirmação; apontar o que precisa ser documentado.
+#   somente_leitura → consultar quando necessário; NUNCA criar, editar ou comentar; apontar dúvidas.
+confluence:
+  espacos: {}                      # do time (.tia/config.yaml)
+  padrao: somente_leitura          # qualquer outro espaço
+  c1_validade_horas: 24
+
+# Pacote de contexto da demanda (packet.py). Tokens ESTIMADOS [E] = caracteres ÷ chars_per_token.
+pacote:
+  chars_per_token: 3.0
+  caps:
+    demanda: 700
+    digest: 1200
+    epico: 1500        # bloco do épico num tia/kb/**/epicos.md, quando há epico_jira
+    regras: 4500       # regras da kb que batem com os termos
+    lacunas: 600       # lacunas conhecidas da kb que batem com os termos
+    retrabalho: 400
+    total: 8900
+  max_regras: 25
+
+# Digest rolante: reescrito a cada demanda aceita.
+digest:
+  max_tokens: 1200
+  ultimas_entregas: 5
+
+# Cobertura (coverage.py): o que reprova a entrega antes do G2.
+cobertura:
+  # Toda regra declarada como relevante precisa de >= 1 critério de aceite que a cite,
+  # ou estar em "Fora do escopo"/"Lacunas" com justificativa.
+  exigir_regra_coberta: true
+  # Critério de aceite precisa do formato Dado/Quando/Então.
+  formato_criterio: "(?is)\\bdado\\b.+\\bquando\\b.+\\bent[aã]o\\b"
+  palavras_vagas: [corretamente, adequad, intuitiv, rápido, rapido, amigável, amigavel, eficiente, "de forma fácil", melhor]
+  # Seções obrigatórias do épico: moram no padrão de épico do workspace (frontmatter `secoes_epico` de
+  # tia/kb/padroes/epico.md). Se o time também definir cobertura.secoes_epico aqui, `kb.py validar` confere se batem.
+
+# Métricas (hook PostToolUse): só registro e alerta, sem corte (decisão D-PM-03).
+metricas:
+  alerta_saida_tokens_por_demanda: 120000
+
+# Dados (MCPs analíticos e CLIs): sempre só leitura. Nenhuma fonte é fixa: a Tia descobre o que está
+# conectado e aprende o que a PM usa (Memória do PM).
+dados:
+  # Ferramentas MCP cujo nome bate aqui são tratadas como fonte de dados (consulta conferida pelo hook).
+  mcp_regex: "(?i)databricks|looker|bigquery|snowflake|amplitude|redshift|postgres|mysql|warehouse|genie|metabase|mixpanel|tableau|power.?bi|\\bsql\\b|_sql|sql_"
+  clis: [databricks, bq, psql, snowsql, sqlcmd, mysql, duckdb]
+  # Comando que altera dados: negado em qualquer fonte.
+  escrita_regex: "(?i)\\b(insert\\s+into|update\\s+\\w+\\s+set|delete\\s+from|merge\\s+into|create\\s+(or\\s+replace\\s+)?(table|view|schema|catalog|function|volume)|drop\\s+(table|view|schema|catalog|function|volume)|alter\\s+(table|view|schema)|truncate\\s+table|grant\\s|revoke\\s|copy\\s+into|optimize\\s|vacuum\\s)"
+  # Ação de MCP/CLI de dados que cria ou roda algo (jobs, clusters, pipelines): pede confirmação.
+  acao_regex: "(?i)\\b(create|delete|update|edit|start|stop|restart|run[-_ ]?now|submit|deploy|destroy|reset|permanent[-_]delete|import)\\b"
+

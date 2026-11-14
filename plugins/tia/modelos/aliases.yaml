@@ -1,0 +1,18 @@
+# "Tia, <frase>" no INÍCIO da mensagem → skill do plugin (hook UserPromptSubmit).
+# Formato: skill: [frases]. Uma frase pode levar argumento com "frase => argumento".
+# Comparação sem acento e sem maiúsculas; vence a frase mais longa que abre a mensagem.
+# Atalhos pessoais da PM ficam no pessoal.md (seção "Atalhos"), não aqui.
+modelo_versao: 1
+aliases:
+  abrir: [bom dia, boa tarde, boa noite, abrir, abre, abre a fila, ver a fila, mostra a fila, fila, retomar, retoma,
+          o que esta pendente, o que tem pendente, pendencias, tem algum alerta, alertas, status]
+  demanda: [demanda, executa a demanda, executar a demanda, roda a demanda, toca a demanda, comeca a demanda]
+  base: [base, atualiza a base, atualizar a base, revisa a base, revisar a base, base de conhecimento]
+  confluence: [confluence, consulta no confluence, documenta no confluence, apontamentos]
+  metricas: [metricas, metrica, quais metricas, como medir, define as metricas]
+  okr: [okr, okrs, fecha os okrs, fechar os okrs, revisa os okrs, desdobra o okr]
+  report: [report, relatorio, "gera o diario => diario", "roda o diario => diario", "diario => diario",
+           "gera o semanal => semanal", "roda o semanal => semanal", "semanal => semanal", "report dos okrs => semanal"]
+  configurar: [configurar, configura, configure, instalar, instala, prepara o projeto,
+               "atualiza a configuracao => atualizar", "atualizar configuracao => atualizar", "configurar atualizar => atualizar"]
+  ajuda: [ajuda, help, comandos, o que voce faz, quais comandos]
