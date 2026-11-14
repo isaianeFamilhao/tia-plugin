@@ -1,4 +1,12 @@
-# Configuração do harness de produto. Lida pelos scripts de .harness/bin/.
+# Configuração PADRÃO da Ada (no plugin). Não edite no workspace: ajuste por sobreposição em .ada/config.yaml.
+#
+# Três categorias:
+#   1. INEGOCIÁVEL (só aqui; o workspace não sobrepõe): escopo_escrita, regex de escrita no Jira/Confluence,
+#      dados.escrita_regex, cobertura.exigir_regra_coberta, cobertura.formato_criterio. Ver INEGOCIAVEIS em _common.py.
+#   2. DEFAULT com ajuste por sobreposição (deep merge; lista substitui lista): tamanhos, max_retrabalho,
+#      palavras_vagas, dados (mcp_regex, clis, acao_regex), confluence.c1_validade_horas, pacote, digest, metricas.
+#   3. DO TIME (copiado no "Ada, configurar" a partir de modelos/config.time.yaml; depois só a humana edita):
+#      atlassian (site, cloud_id, jira_projeto, espaços), confluence.espacos, modelos.
 version: 1
 
 # Tamanho da demanda (definido pelo humano na fila; confirmado no G1).
@@ -25,10 +33,6 @@ escopo_escrita:
 # Integração Atlassian (hook PreToolUse). Leitura livre; escrita só depois do G3 da demanda ativa,
 # e mesmo assim cada chamada pede confirmação humana (ask).
 atlassian:
-  cloud_id: bdacf5a1-ccd3-44b6-a9f0-65eb934d9827
-  site: https://familhao-scm.atlassian.net
-  jira_projeto: IT
-  espacos_confluence: [INT, BPE, PO, Parcerias, QA, APP, EER, PLAYBOOKS]
   # Prefixos de nome de ferramenta MCP que escrevem no Jira/Confluence.
   ferramentas_escrita_regex: "(?i)__(create|edit|update|transition|add|delete)[A-Za-z]*(Jira|Confluence|Issue|Page|Comment|Worklog|Compass|Link)"
   # Subconjunto que escreve no Confluence (página ou comentário): segue a política por espaço abaixo.
@@ -39,10 +43,7 @@ atlassian:
 #                     limitada) e cada escrita ainda pede confirmação; apontar o que precisa ser documentado.
 #   somente_leitura → consultar quando necessário; NUNCA criar, editar ou comentar; apontar dúvidas.
 confluence:
-  espacos:
-    INT: {id: "282787868", nome: Internal Tools, politica: manter}
-    PO: {id: "370737187", nome: Políticas, politica: somente_leitura}
-    PLAYBOOKS: {id: "322895878", nome: Playbooks, politica: somente_leitura}
+  espacos: {}                      # do time (.ada/config.yaml)
   padrao: somente_leitura          # qualquer outro espaço
   c1_validade_horas: 24
 
@@ -72,15 +73,8 @@ cobertura:
   # Critério de aceite precisa do formato Dado/Quando/Então.
   formato_criterio: "(?is)\\bdado\\b.+\\bquando\\b.+\\bent[aã]o\\b"
   palavras_vagas: [corretamente, adequad, intuitiv, rápido, rapido, amigável, amigavel, eficiente, "de forma fácil", melhor]
-  # Seções obrigatórias do épico (skill /epico-internal-tools), nesta ordem.
-  secoes_epico:
-    - "Em uma frase"
-    - "Por que isso importa"
-    - "O que muda no dia a dia"
-    - "Como vamos saber que funcionou"
-    - "Escopo"
-    - "Fora do escopo"
-    - "O que precisamos combinar"
+  # Seções obrigatórias do épico: moram no padrão de épico do workspace (frontmatter `secoes_epico` de
+  # ada/kb/padroes/epico.md). Se o time também definir cobertura.secoes_epico aqui, `kb.py validar` confere se batem.
 
 # Métricas (hook PostToolUse): só registro e alerta, sem corte (decisão D-PM-03).
 metricas:
@@ -97,6 +91,3 @@ dados:
   # Ação de MCP/CLI de dados que cria ou roda algo (jobs, clusters, pipelines): pede confirmação.
   acao_regex: "(?i)\\b(create|delete|update|edit|start|stop|restart|run[-_ ]?now|submit|deploy|destroy|reset|permanent[-_]delete|import)\\b"
 
-modelos:
-  permitidos: [opus, sonnet, haiku]
-  esforco: medium

@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import kb as kbmod  # noqa: E402
 from _common import (CANDIDATE_ID_RE, DEMAND_ID_RE, REPO_ROOT, P, RULE_ID_RE,  # noqa: E402
-                     SOURCE_ID_RE, atomic_write_text, load_config, read_json, write_json)
+                     SOURCE_ID_RE, atomic_write_text, secoes_epico, load_config, read_json, write_json)
 
 RESULT_KEYS = ("demanda_id", "status", "historias", "regras_relevantes", "fora_do_escopo", "lacunas",
                "fontes", "summary", "open_questions", "blocked_reason")
@@ -237,7 +237,7 @@ def evaluate(did: str, root: Path = REPO_ROOT) -> dict:
             rep["avisos"].append(f"fontes citadas no result.json e ausentes em pesquisa.md: {', '.join(unseen)}")
 
     # épico
-    e_errs, e_warns = check_epic(d / "epico.md", (cfg.get("cobertura") or {}).get("secoes_epico") or [])
+    e_errs, e_warns = check_epic(d / "epico.md", secoes_epico(root, cfg))
     rep["erros"] += e_errs
     rep["avisos"] += e_warns
 

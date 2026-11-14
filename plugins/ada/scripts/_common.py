@@ -97,7 +97,7 @@ DEFAULT_CHARS_PER_TOKEN = 3.0  # calibrado na F3 do harness-lean (app desktop)
 DEMAND_ID_RE = re.compile(r"^D-\d{3}$")
 RULE_ID_RE = re.compile(r"^RN-[A-Z]{3}-\d{3}$")        # regra da kb
 CANDIDATE_ID_RE = re.compile(r"^RC-\d{2,3}$")            # regra candidata, só da demanda
-SOURCE_ID_RE = re.compile(r"^SRC-(EMP|IT|DEM)-\d{3}$")
+SOURCE_ID_RE = re.compile(r"^SRC-[A-Z]{2,4}-\d{3}$")       # EMP, sigla do time, DEM
 JIRA_KEY_RE = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
 
 USAGE_KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
@@ -210,8 +210,97 @@ def today() -> str:
     return date.today().isoformat()
 
 
+# Chaves que o workspace NÃO sobrepõe (categoria 1). Caminho com ponto = chave aninhada.
+INEGOCIAVEIS = (
+    "escopo_escrita",
+    "atlassian.ferramentas_escrita_regex",
+    "atlassian.confluence_escrita_regex",
+    "confluence.padrao",
+    "dados.escrita_regex",
+    "cobertura.exigir_regra_coberta",
+    "cobertura.formato_criterio",
+)
+
+
+def deep_merge(base: dict, over: dict) -> dict:
+    """Sobreposição: dicionário mescla recursivamente; lista e escalar substituem."""
+    out = dict(base)
+    for k, v in (over or {}).items():
+        out[k] = deep_merge(out[k], v) if isinstance(out.get(k), dict) and isinstance(v, dict) else v
+    return out
+
+
+def _get(d: dict, dotted: str):
+    cur = d
+    for part in dotted.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return KeyError
+        cur = cur[part]
+    return cur
+
+
+def _set(d: dict, dotted: str, value) -> None:
+    parts = dotted.split(".")
+    for part in parts[:-1]:
+        d = d.setdefault(part, {})
+    if value is KeyError:
+        d.pop(parts[-1], None)
+    else:
+        d[parts[-1]] = value
+
+
+def config_padrao() -> dict:
+    return load_yaml(MODELOS / "config.padrao.yaml") or {}
+
+
+def config_workspace(root: Path | None = None) -> dict:
+    p = P(root, "config")
+    return (load_yaml(p) or {}) if p.exists() else {}
+
+
 def load_config(root: Path | None = None) -> dict:
-    return load_yaml(P(root, "config")) or {}
+    """Padrão do plugin + config do time (deep merge), com as chaves inegociáveis repostas do padrão."""
+    import copy
+
+    base = config_padrao()
+    cfg = deep_merge(base, config_workspace(root))
+    for k in INEGOCIAVEIS:
+        _set(cfg, k, copy.deepcopy(_get(base, k)))
+    return cfg
+
+
+def config_sobreposicoes_ignoradas(root: Path | None = None) -> list[str]:
+    """Chaves inegociáveis que o workspace tentou sobrepor (o doctor avisa)."""
+    ws = config_workspace(root)
+    return [k for k in INEGOCIAVEIS if _get(ws, k) is not KeyError]
+
+
+# ------------------------------------------------------------------ padrões do workspace
+def frontmatter(path: Path) -> tuple[dict, str]:
+    """(metadados YAML, corpo) de um .md com frontmatter `---`; sem frontmatter: ({}, texto)."""
+    import yaml
+
+    text = Path(path).read_text(encoding="utf-8") if Path(path).exists() else ""
+    m = re.match(r"^---\r?\n(.*?)\r?\n---\r?\n?(.*)$", text, re.S)
+    if not m:
+        return {}, text
+    try:
+        meta = yaml.safe_load(m.group(1)) or {}
+    except yaml.YAMLError:
+        meta = {}
+    return (meta if isinstance(meta, dict) else {}), m.group(2)
+
+
+def secoes_epico(root: Path | None = None, cfg: dict | None = None) -> list[str]:
+    """Seções obrigatórias do épico: padrão do workspace (frontmatter) > config > padrão do plugin."""
+    meta, _ = frontmatter(P(root, "kb", "padroes", "epico.md"))
+    if meta.get("secoes_epico"):
+        return list(meta["secoes_epico"])
+    cfg = cfg if cfg is not None else load_config(root)
+    if (cfg.get("cobertura") or {}).get("secoes_epico"):
+        return list(cfg["cobertura"]["secoes_epico"])
+    meta, _ = frontmatter(MODELOS / "padroes" / "epico.md")
+    return list(meta.get("secoes_epico") or [])
 
 
 # ------------------------------------------------------------------ tokens [E]

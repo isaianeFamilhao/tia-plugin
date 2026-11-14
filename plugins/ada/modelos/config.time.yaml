@@ -1,0 +1,22 @@
+# Configuração DO TIME (workspace). Marcador da Ada: a existência deste arquivo em .ada/config.yaml liga a Ada.
+# Criado pelo "Ada, configurar"; depois só a humana edita. Versionado no git.
+# Tudo o que não está aqui vem do padrão do plugin (modelos/config.padrao.yaml). Para ajustar um default
+# (tamanhos, max_retrabalho, cobertura.palavras_vagas, dados.*, confluence.c1_validade_horas), repita só a chave.
+# Regras inegociáveis (escopo de escrita, gates, escrita no Jira/Confluence/dados) não podem ser sobrepostas.
+modelo_versao: 1
+
+atlassian:
+  site: "{site}"                      # ex.: https://empresa.atlassian.net
+  cloud_id: "{cloud_id}"
+  jira_projeto: "{jira_projeto}"      # chave do projeto do time no Jira
+  espacos_confluence: {espacos_lista}   # espaços que a Ada consulta
+
+# Política por espaço: só o espaço marcado `manter` pode ser alterado (com C1). Os demais são somente leitura.
+confluence:
+  espacos:
+{espacos_bloco}
+  padrao: somente_leitura
+
+modelos:
+  permitidos: [opus, sonnet, haiku]
+  esforco: medium

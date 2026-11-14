@@ -153,7 +153,7 @@ def validate_rules(rules: list[Rule], sources: dict[str, dict], candidates: bool
             errs.append({"id": r.id, "onde": where, "erro": "regra sem fonte"})
         for s in r.fontes:
             if not SOURCE_ID_RE.match(s):
-                errs.append({"id": r.id, "onde": where, "erro": f"fonte fora do padrão SRC-(EMP|IT|DEM)-NNN: {s}"})
+                errs.append({"id": r.id, "onde": where, "erro": f"fonte fora do padrão SRC-XXX-NNN: {s}"})
             elif s not in sources:
                 errs.append({"id": r.id, "onde": where, "erro": f"fonte não registrada: {s}"})
         if "Atualizado" in r.campos and not re.match(r"^\d{4}-\d{2}-\d{2}$", r.atualizado):
@@ -180,13 +180,32 @@ def validate_sources(sources: dict[str, dict]) -> list[dict]:
     return errs
 
 
+def validate_padroes(root: Path = REPO_ROOT) -> list[dict]:
+    """`cobertura.secoes_epico` do config do time (se houver) bate com o padrão de épico do workspace."""
+    from _common import config_workspace, frontmatter
+
+    p = P(root, "kb", "padroes", "epico.md")
+    meta, corpo = frontmatter(p)
+    errs: list[dict] = []
+    where = "ada/kb/padroes/epico.md"
+    secoes = meta.get("secoes_epico")
+    if p.exists() and not secoes:
+        errs.append({"id": "PADRAO-EPICO", "onde": where, "erro": "frontmatter sem `secoes_epico`"})
+    cfg_sec = ((config_workspace(root).get("cobertura") or {}).get("secoes_epico"))
+    if secoes and cfg_sec and list(cfg_sec) != list(secoes):
+        errs.append({"id": "PADRAO-EPICO", "onde": ".ada/config.yaml",
+                     "erro": "cobertura.secoes_epico diferente do padrão de épico do workspace: "
+                             f"{list(cfg_sec)} × {list(secoes)}"})
+    return errs
+
+
 def validate_kb(root: Path = REPO_ROOT) -> dict:
     rules = load_rules(root)
     sources = load_sources(root)
     import memoria
 
     errs = (validate_sources(sources) + validate_rules(rules, sources) + validate_apontamentos(root)
-            + memoria.validate(root))
+            + memoria.validate(root) + validate_padroes(root))
     return {"ok": not errs, "erros": errs, "regras": len(rules), "fontes": len(sources)}
 
 

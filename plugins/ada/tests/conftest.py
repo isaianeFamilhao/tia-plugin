@@ -143,6 +143,23 @@ PESQUISA = """# Pesquisa · D-001
 """
 
 
+CONFIG_TIME = """modelo_versao: 1
+atlassian:
+  site: https://exemplo.atlassian.net
+  cloud_id: 00000000-0000-0000-0000-000000000000
+  jira_projeto: IT
+  espacos_confluence: [INT, PO, PLAYBOOKS]
+confluence:
+  espacos:
+    INT: {id: "282787868", nome: Internal Tools, politica: manter}
+    PO: {id: "370737187", nome: Políticas, politica: somente_leitura}
+    PLAYBOOKS: {id: "322895878", nome: Playbooks, politica: somente_leitura}
+modelos:
+  permitidos: [opus, sonnet, haiku]
+  esforco: medium
+"""
+
+
 def result(**over) -> dict:
     r = {"demanda_id": "D-001", "status": "delivered", "historias": ["H-01"],
          "regras_relevantes": ["RN-ITR-001", "RN-ITR-002", "RN-ITR-003", "RC-01"],
@@ -157,12 +174,13 @@ def result(**over) -> dict:
 def proj(tmp_path, monkeypatch) -> Path:
     m = tmp_path / ".ada"
     m.mkdir()
-    shutil.copy(REPO / "modelos" / "config.padrao.yaml", m / "config.yaml")
+    (m / "config.yaml").write_text(CONFIG_TIME, encoding="utf-8")
     a = tmp_path / "ada"
     a.mkdir()
     (a / "demandas.yaml").write_text(DEMANDAS, encoding="utf-8")
     kb = a / "kb"
     (kb / "internal-tools" / "regras").mkdir(parents=True)
+    shutil.copytree(REPO / "modelos" / "padroes", kb / "padroes")
     (kb / "fontes").mkdir()
     (kb / "internal-tools" / "regras" / "reprocessamento-ajustes.md").write_text(RULES, encoding="utf-8")
     (kb / "fontes" / "internal-tools.yaml").write_text(SOURCES, encoding="utf-8")
