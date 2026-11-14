@@ -2,7 +2,6 @@ import json
 
 import pytest
 
-import memoria
 import metricas
 
 PLANO = """monitores:
@@ -73,30 +72,6 @@ def test_ativos_marca_devido_e_encerrar(proj, plano):
     assert [r["id"] for r in metricas.ativos(proj)] == ["M-001"]
     with pytest.raises(metricas.MetricasError):
         metricas.avaliar(proj, "M-002", 10)
-
-
-MEM = """# Memória
-
-### PM-001 · Linguagem humana
-- **Aprendi:** citar pelo nome
-- **Evidência:** "não sei o que é RN" (2026-11-13)
-- **Aplicar em:** conversa
-- **Status:** ativa
-- **Desde:** 2026-11-13
-"""
-
-
-def test_memoria_valida_e_proximo(proj):
-    (proj / "ada" / "kb" / "memoria-pm.md").write_text(MEM, encoding="utf-8")
-    assert memoria.validate(proj) == []
-    assert memoria.proximo(proj) == "PM-002"
-
-
-def test_memoria_revogada_exige_motivo(proj):
-    (proj / "ada" / "kb" / "memoria-pm.md").write_text(MEM.replace("ativa", "revogada"), encoding="utf-8")
-    assert any("Motivo" in e["erro"] for e in memoria.validate(proj))
-    (proj / "ada" / "kb" / "memoria-pm.md").write_text(MEM.replace("conversa", "planeta"), encoding="utf-8")
-    assert any("Aplicar em" in e["erro"] for e in memoria.validate(proj))
 
 
 PLANO_OK = {

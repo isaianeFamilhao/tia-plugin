@@ -366,13 +366,32 @@ def stop(data: dict) -> dict | None:
 
 
 # ------------------------------------------------------------------ SessionStart
+# O Claude Code guarda em arquivo o contexto acima de 10.000 caracteres e injeta só uma prévia: fica abaixo.
+TETO_CONTEXTO = 9000
+TETO_PRINCIPIOS = 5000
+
+
+def launcher_cmd() -> str:
+    return f'bash "{norm_path(CODE_ROOT / "scripts" / "ada.sh")}"'
+
+
+def principios_texto() -> str:
+    from _common import MODELOS, fit_tokens, frontmatter
+
+    _, corpo = frontmatter(MODELOS / "principios.md")
+    corpo = corpo.strip().replace('bash "<plugin>/scripts/ada.sh"', launcher_cmd())
+    if len(corpo) > TETO_PRINCIPIOS:  # defesa: o teste garante que o arquivo cabe
+        corpo = corpo[:TETO_PRINCIPIOS].rsplit("\n", 1)[0] + "\n[RECORTADO: texto completo na skill ada:abrir]"
+    return corpo
+
+
 def session_start(data: dict) -> dict | None:
     root = root_of(data)
     sid = str(data.get("session_id") or "")
     led = ledger(root).get("demandas") or {}
     did, d = active_demand(root)
-    lines = [f"{PREFIX} Harness de produto (Ada). session_id desta sessão: {sid or '(não informado)'} "
-             "(use em `ledger.py iniciar <D> --session-id <id>`)."]
+    lines = [f"{PREFIX} session_id desta sessão: {sid or '(não informado)'} "
+             f"(use em `{launcher_cmd()} ledger iniciar <D> --session-id <id>`)."]
     if did:
         owner = (d.get("sessao") or {}).get("session_id")
         lines.append(f"{PREFIX} Demanda em andamento: {did} (tentativa {d.get('tentativa')}, "
@@ -381,8 +400,22 @@ def session_start(data: dict) -> dict | None:
     g2 = [k for k, v in led.items() if v.get("state") == "delivered"]
     if ready or g2:
         lines.append(f"{PREFIX} Prontas para G1: {', '.join(ready) or '—'} · aguardando G2: {', '.join(g2) or '—'}.")
-    lines.append(f"{PREFIX} Sou a Ada: comece por /ada (ou 'Ada, …'). Instruções centrais em CLAUDE.md.")
-    return context("SessionStart", "\n".join(lines))
+    lines.append(f"{PREFIX} Sou a Ada: comece por /ada:abrir (ou 'Ada, bom dia'). Parte do time em CLAUDE.md.")
+    blocos = [principios_texto(), "\n".join(lines)]
+    try:
+        import memoria
+
+        extra = memoria.contexto_sessao(root)          # índice da Memória + pessoal.md, já em ordem de precedência
+    except Exception as exc:  # noqa: BLE001 — a Memória nunca derruba a abertura
+        extra = f"{PREFIX} Memória indisponível ({type(exc).__name__}): rode `ada.sh memoria validar`."
+    if extra:
+        resto = TETO_CONTEXTO - sum(len(b) + 2 for b in blocos)
+        if len(extra) > resto:
+            extra = extra[:max(0, resto - 120)].rsplit("\n", 1)[0] + (
+                f"\n{PREFIX} [RECORTADO: Memória e pessoal passam de {TETO_CONTEXTO} caracteres; "
+                "veja tudo com `ada.sh memoria listar`]")
+        blocos.append(extra)
+    return context("SessionStart", "\n\n".join(blocos))
 
 
 def prompt(data: dict) -> dict | None:

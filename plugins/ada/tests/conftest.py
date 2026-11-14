@@ -187,6 +187,7 @@ def proj(tmp_path, monkeypatch) -> Path:
     (kb / "internal-tools" / "epicos.md").write_text("# Épicos\n\n## IT-39 · 3.2 Atendimento resolve sozinho\n\nDetalhe.\n",
                                                     encoding="utf-8")
     monkeypatch.setenv("HARNESS_ROOT", str(tmp_path))
+    monkeypatch.setenv("ADA_HOME", str(tmp_path / "home-ada"))      # nunca toca o ~/.ada real
     monkeypatch.delenv("HARNESS_DEV", raising=False)
     return tmp_path
 

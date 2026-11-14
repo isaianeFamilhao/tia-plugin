@@ -83,7 +83,7 @@ def run_checks(root: Path = REPO_ROOT) -> list[dict]:
     out.append(check("OK" if not merr else "FALHA", "monitoramento",
                      f"{len([m for m in metricas.load_monitors(root) if m.get('status') == 'ativo'])} monitor(es) ativo(s)"
                      if not merr else f"{len(merr)} erro(s): {merr[0]}", "" if not merr else ".venv/Scripts/python.exe .harness/bin/metricas.py validar"))
-    mem = [e for e in memoria.parse(root) if e["campos"].get("Status", "").lower() == "ativa"]
+    mem = memoria.ativas(root)
     out.append(check("OK", "memoria", f"Memória da PM: {len(mem)} aprendizado(s) ativo(s)"))
     led = read_json(root / ".harness" / "ledger.json") or {}
     running = [k for k, d in (led.get("demandas") or {}).items() if d.get("state") == "running"]
