@@ -99,9 +99,10 @@ são os mesmos; o passo 5 (fila) não existe e entram estes, no lugar dele:
 5a. **Times com travas:** `TIA portfolio ultimo --resumo`. Se o retrato não for de hoje (ou não existir), rode a
     coleta da `/tia:portfolio` (passos 1 a 3: validar, JQL só leitura por time, `portfolio agregar --gravar`) e
     rode `TIA portfolio ultimo --resumo` de novo. Jira indisponível → "times não checados: <motivo>".
-5b. **OKRs do grupo em risco:** `TIA okr listar --ativos` e o resumo das métricas (`TIA metricas resumo --dias 7
-    --json`). Em risco = KR com leitura abaixo do caminho para a meta ou com monitor em alerta. Sem OKR
-    registrado: uma linha ("nenhum OKR do grupo registrado") e ofereça `/tia:okr`.
+5b. **OKRs do grupo em risco:** `TIA okr listar --ativos --nivel grupo` (só os OKRs de nível grupo; OKR de
+    time não entra aqui) e o resumo das métricas (`TIA metricas resumo --dias 7 --json`). Em risco = KR com
+    leitura abaixo do caminho para a meta ou com monitor em alerta; cite o objetivo pelo título, com o `OBJ-NN`
+    só na linha "Ref.". Sem OKR de grupo ativo: uma linha ("nenhum OKR do grupo registrado") e ofereça `/tia:okr`.
 
 **Formato do briefing GPM**, nesta ordem: **alertas** (crítico > alerta), **times com travas** (time, o que
 trava, próximo passo; uma linha por time), **OKRs do grupo em risco**; depois o que espera decisão dela (K1, M1,

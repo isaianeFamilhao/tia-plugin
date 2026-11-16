@@ -257,3 +257,52 @@ def test_configurar_cli_gpm_sem_pyyaml(tmp_path, monkeypatch):
     r = subprocess.run([sys.executable, "-c", code, str(BIN), str(ws)], capture_output=True, text=True, encoding="utf-8")
     assert r.returncode == 0, r.stderr
     assert _common.load_config(ws)["atlassian"]["jira_projetos"] == ["A", "B"]
+
+
+# ------------------------------------------------------------------ item 11: /tia:okr no perfil GPM
+def test_okr_de_grupo_passa_no_okr_validar(tmp_path, monkeypatch, capsys):
+    import yaml
+
+    import okr
+    from test_okr import grupo_q3
+
+    monkeypatch.setattr(okr, "REPO_ROOT", tmp_path)
+    arq = tmp_path / "tia" / "propostas" / "okrs-2026-Q3-grupo.yaml"
+    arq.parent.mkdir(parents=True)
+    arq.write_text(yaml.safe_dump([grupo_q3()], allow_unicode=True, sort_keys=False), encoding="utf-8")
+    assert okr.main(["validar", str(arq)]) == 0
+    assert "OKRs: OK" in capsys.readouterr().out
+
+
+def test_skill_okr_tem_ramo_gpm_sem_consolidacao():
+    texto = (_common.CODE_ROOT / "skills" / "okr" / "SKILL.md").read_text(encoding="utf-8")
+    ramo = texto[texto.index("## Perfil GPM: OKRs do grupo"):]
+    assert "nivel: grupo" in ramo and "id: OBJ-01" in ramo and "okrs-<ciclo>-grupo.yaml" in ramo
+    assert "TIA okr validar" in ramo and "consolidar ou desdobrar os OKRs dos times" in ramo
+    pm = texto[texto.index("## Postura"):texto.index("## Perfil GPM: OKRs do grupo")]
+    assert "Rascunho em `tia/propostas/okrs-<ciclo>-<time>.yaml`" in pm                 # PM igual
+    assert "nivel" not in pm and "OBJ-" not in pm
+    assert "copie para `tia/kb/okrs.yaml` com `status: ativo`" in pm
+
+
+def test_abertura_gpm_le_so_okrs_de_grupo():
+    texto = (_common.CODE_ROOT / "skills" / "abrir" / "SKILL.md").read_text(encoding="utf-8")
+    ramo = texto[texto.index("### Perfil GPM"):texto.index("## Pedidos em linguagem natural")]
+    assert "TIA okr listar --ativos --nivel grupo" in ramo
+    assert "--nivel" not in texto[:texto.index("### Perfil GPM")]                       # passo do PM intacto
+
+
+def test_okr_listar_pm_sem_nivel_sai_como_antes(tmp_path, monkeypatch, capsys):
+    import yaml
+
+    import okr
+    from test_okr import BOM
+
+    monkeypatch.setattr(okr, "REPO_ROOT", tmp_path)
+    c = dict(BOM[0], status="ativo")
+    (tmp_path / "tia" / "kb").mkdir(parents=True)
+    (tmp_path / "tia" / "kb" / "okrs.yaml").write_text(yaml.safe_dump([c], allow_unicode=True), encoding="utf-8")
+    okr.main(["listar", "--ativos"])
+    linhas = capsys.readouterr().out.splitlines()
+    assert linhas[0] == "2026-Q3 · Onboarding (ativo, comprometido)"
+    assert linhas[1] == "  Novos usuários chegam ao primeiro valor sem frustração"

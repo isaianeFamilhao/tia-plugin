@@ -1,12 +1,13 @@
 ---
 name: okr
-description: Cria, revisa ou desdobra OKRs com pragmatismo — calibra pelo momento e maturidade do time, objetivo qualitativo, 2–4 KRs "de X para Y", adaptações quando o clássico não encaixa (KR de baseline, de aprendizado, de marco técnico, comprometido ou aspiracional), tensão saudável, checagem de dados e iniciativas separadas dos KRs. Use quando a PM digitar /tia:okr ou pedir "fechar os OKRs", "revisar esse OKR", "desdobrar o OKR da empresa para o time".
+description: Cria, revisa ou desdobra OKRs com pragmatismo — calibra pelo momento e maturidade do time, objetivo qualitativo, 2–4 KRs "de X para Y", adaptações quando o clássico não encaixa (KR de baseline, de aprendizado, de marco técnico, comprometido ou aspiracional), tensão saudável, checagem de dados e iniciativas separadas dos KRs. No perfil GPM, cria e revisa os OKRs do grupo (nível grupo, objetivos com id OBJ-NN) com o mesmo método. Use quando a humana digitar /tia:okr ou pedir "fechar os OKRs", "revisar esse OKR", "desdobrar o OKR da empresa para o time", "fechar os OKRs do grupo".
 ---
 
 # /tia:okr $ARGUMENTS
 
 Método de estratégia para OKRs claros e mensuráveis, sem dogma. Fale como a Tia (`CLAUDE.md`): curta,
-direta, sem emojis. Boa prática existe para dar clareza, não burocracia. `TIA` = `bash "${CLAUDE_PLUGIN_ROOT}/scripts/tia.sh"`.
+direta, sem emojis. Boa prática existe para dar clareza, não burocracia. No perfil GPM, veja também
+**Perfil GPM: OKRs do grupo**, no fim. `TIA` = `bash "${CLAUDE_PLUGIN_ROOT}/scripts/tia.sh"`.
 
 ## Postura
 - **Pragmatismo antes de dogma.** Descoberta, produto novo ou fundação técnica não pedem KR financeiro
@@ -73,3 +74,33 @@ justifique em uma linha — aviso é conversa, não bloqueio.
 Com "aprovar": copie para `tia/kb/okrs.yaml` com `status: ativo` e rode `TIA okr validar`.
 Depois ofereça monitorar os KRs mensuráveis hoje (M1, via `/tia:abrir`). Preferência que se repete (modo, tom dos
 objetivos, cadência de check-in) → proponha guardar na Memória. Os OKRs ativos alimentam o `/tia:report semanal`.
+
+## Perfil GPM: OKRs do grupo
+
+O perfil vem no início da sessão ("Perfil desta pasta") e em `.tia/config.yaml`. No GPM, `/tia:okr` cria e revisa
+os **OKRs do grupo** com o mesmo método (postura, etapas 1 a 5, avaliador e gate de aprovação acima). Muda só isto:
+
+- **Calibragem:** o objetivo superior é o da empresa ou da diretoria (texto livre no `alinhamento`); o momento é o
+  do grupo. Retrato dos times (`TIA portfolio ultimo --resumo`) só como contexto de capacidade, sem nomes de pessoas.
+- **Registro:** `nivel: grupo`, `time: <nome do grupo>` e um `id` por objetivo, em sequência no ciclo
+  (`OBJ-01`, `OBJ-02`…; numa revisão, mantenha os ids existentes). Rascunho em
+  `tia/propostas/okrs-<ciclo>-grupo.yaml`:
+
+  ```yaml
+  - ciclo: 2026-Q3
+    nivel: grupo
+    time: <nome do grupo>
+    alinhamento: <objetivo da empresa ou da diretoria>
+    # horizonte, momento, modo e status como acima
+    objetivos:
+      - id: OBJ-01
+        titulo: <mudança de estado>
+        krs: [...]          # mesmo formato e mesmos tipos
+        iniciativas: [...]
+  ```
+- **Avaliador:** `TIA okr validar <arquivo>` igual. Com "aprovar": copie para `tia/kb/okrs.yaml` com
+  `status: ativo` e rode `TIA okr validar`. A abertura do GPM passa a mostrar esses OKRs em "OKRs do grupo em risco".
+- **Para os times:** diga em uma linha que cada time cita o objetivo do grupo pelo id no `alinhamento` do OKR dele
+  (`alinhamento: OBJ-02`); na pasta da PM, `TIA okr validar <arquivo> --grupo <okrs do grupo>` confere o vínculo.
+- **Fora daqui, por enquanto:** consolidar ou desdobrar os OKRs dos times do grupo (decisão pendente da humana).
+  Pedido assim → uma linha dizendo que ainda não está disponível e siga só com os OKRs do grupo.

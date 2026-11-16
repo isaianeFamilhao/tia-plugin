@@ -189,7 +189,7 @@ def test_abertura_tem_ramo_gpm_na_ordem_do_plano():
     ramo = texto[texto.index("### Perfil GPM"):texto.index("## Pedidos em linguagem natural")]
     fmt = ramo[ramo.index("**Formato do briefing GPM**"):]
     assert fmt.index("**alertas**") < fmt.index("**times com travas**") < fmt.index("**OKRs do grupo em risco**")
-    assert "portfolio ultimo --resumo" in ramo and "okr listar --ativos" in ramo
+    assert "portfolio ultimo --resumo" in ramo and "okr listar --ativos --nivel grupo" in ramo
     assert "passo 5 (fila) não existe" in ramo
     pm = texto[texto.index("## Abertura"):texto.index("### Perfil GPM")]
     assert "alertas primeiro (crítico > alerta), depois o que espera decisão" in pm      # PM igual
