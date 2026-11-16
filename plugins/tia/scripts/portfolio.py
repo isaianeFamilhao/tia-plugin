@@ -1,9 +1,17 @@
-"""Portfólio do GPM: times do grupo (config do time) e, mais adiante, a agregação do Jira por time.
+"""Portfólio do GPM: times do grupo (config do time) e agregação do Jira por time, sem pessoas.
 
     tia.sh portfolio validar [--json]       # confere portfolio.times do .tia/config.yaml
+    tia.sh portfolio agregar --entrada <resultado-jql.json> [--entrada …] [--janela 7] [--parado 5] [--json]
+                             [--gravar]     # grava tia/relatorios/<data>-portfolio.json (já sem pessoas)
 
 `portfolio.times` (perfil GPM): lista de times, cada um com `nome`, `jira_projeto` (chave do projeto) e, se
 quiser, `board` (id do quadro). Sem pessoas na config: o portfólio é por time, nunca por responsável.
+
+`agregar` lê o resultado das consultas JQL (o JSON do conector: `{"issues": [...]}`, uma lista de issues ou
+uma lista de resultados; `-` lê da entrada padrão) e devolve, por time: itens em andamento por etapa,
+travados (sinalizados, bloqueados por item aberto, ou sem movimento há `--parado` dias) e concluídos na
+janela. Antes de qualquer conta, cada issue é reduzida a uma lista fechada de campos: responsável, relator,
+criador, comentários e qualquer outro campo de pessoa são descartados e nunca chegam à saída nem ao disco.
 """
 from __future__ import annotations
 
@@ -66,14 +74,199 @@ def validar_times(cfg: dict) -> dict:
     return {"erros": erros, "avisos": avisos, "times": len(bruto or [])}
 
 
+# ------------------------------------------------------------------ agregação (item 7)
+STATUS_TRAVADO_RE = re.compile(r"(?i)bloque|imped|blocked")
+FLAG_VALORES = {"impediment", "impedimento", "flagged", "sinalizado"}
+MAX_RESUMO = 100
+
+
+def _data(v) -> str | None:
+    """AAAA-MM-DD de um carimbo do Jira (`2026-11-10T14:03:22.123-0300`), ou None."""
+    m = re.match(r"^\d{4}-\d{2}-\d{2}", str(v or ""))
+    return m.group(0) if m else None
+
+
+def _sinalizado(fields: dict) -> bool:
+    if fields.get("flagged") is True:
+        return True
+    for k, v in fields.items():
+        if not k.startswith("customfield_"):
+            continue
+        vals = v if isinstance(v, list) else [v]
+        for x in vals:
+            val = x.get("value") if isinstance(x, dict) else x
+            if isinstance(val, str) and val.strip().lower() in FLAG_VALORES:
+                return True
+    return False
+
+
+def _bloqueado_por(fields: dict) -> list[str]:
+    """Chaves que bloqueiam esta issue e ainda não terminaram (links "is blocked by")."""
+    out = []
+    for ln in fields.get("issuelinks") or []:
+        if not isinstance(ln, dict):
+            continue
+        tipo = ln.get("type") or {}
+        outra = ln.get("inwardIssue")
+        rotulo = str(tipo.get("inward") or "")
+        if not outra or not (re.search(r"(?i)blocked by|bloquead", rotulo) or str(tipo.get("name")).lower() == "blocks"):
+            continue
+        cat = (((outra.get("fields") or {}).get("status") or {}).get("statusCategory") or {}).get("key")
+        if cat != "done" and outra.get("key"):
+            out.append(str(outra["key"]))
+    return out
+
+
+def issue_limpa(raw: dict) -> dict | None:
+    """Só os campos que o portfólio usa (lista fechada). Nenhum campo de pessoa passa daqui."""
+    if not isinstance(raw, dict) or not raw.get("key"):
+        return None
+    f = raw.get("fields") if isinstance(raw.get("fields"), dict) else {}
+    st = f.get("status") if isinstance(f.get("status"), dict) else {}
+    cat = (st.get("statusCategory") or {}).get("key") if isinstance(st.get("statusCategory"), dict) else None
+    key = str(raw["key"])
+    projeto = ((f.get("project") or {}).get("key") if isinstance(f.get("project"), dict) else None) or key.split("-")[0]
+    resumo = str(f.get("summary") or "").strip()
+    return {
+        "key": key,
+        "projeto": str(projeto),
+        "tipo": (f.get("issuetype") or {}).get("name") if isinstance(f.get("issuetype"), dict) else None,
+        "resumo": resumo if len(resumo) <= MAX_RESUMO else resumo[:MAX_RESUMO - 1] + "…",
+        "etapa": st.get("name") or "(sem etapa)",
+        "categoria": cat or "new",
+        "atualizado": _data(f.get("updated")),
+        "concluido": _data(f.get("resolutiondate") or (f.get("statuscategorychangedate") if cat == "done" else None)),
+        "sinalizado": _sinalizado(f),
+        "bloqueado_por": _bloqueado_por(f),
+    }
+
+
+def _issues_de(obj) -> list[dict]:
+    if isinstance(obj, list):
+        out: list[dict] = []
+        for x in obj:
+            out += [x] if isinstance(x, dict) and "key" in x else _issues_de(x)
+        return out
+    if isinstance(obj, dict):
+        for k in ("issues", "results", "values"):
+            if isinstance(obj.get(k), list):
+                return _issues_de(obj[k])
+        if "key" in obj:
+            return [obj]
+    return []
+
+
+def carregar(entradas: list[str]) -> list[dict]:
+    """Lê os resultados JQL e já devolve as issues reduzidas (sem pessoas), sem repetir chave."""
+    vistas: dict[str, dict] = {}
+    for e in entradas:
+        texto = sys.stdin.read() if e == "-" else Path(e).read_text(encoding="utf-8")
+        for raw in _issues_de(json.loads(texto)):
+            limpa = issue_limpa(raw)
+            if limpa:
+                vistas[limpa["key"]] = limpa
+    return list(vistas.values())
+
+
+def agregar(issues: list[dict], times_: list[dict], janela_dias: int = 7, parado_dias: int = 5,
+            hoje: str | None = None) -> dict:
+    from datetime import date
+
+    d0 = date.fromisoformat(hoje) if hoje else date.today()
+
+    def dias(s: str | None) -> int | None:
+        return (d0 - date.fromisoformat(s)).days if s else None
+
+    por_proj = {str(t.get("jira_projeto")): t for t in times_ if t.get("jira_projeto")}
+    saida = {str(t.get("jira_projeto")): {"nome": t.get("nome"), "jira_projeto": t.get("jira_projeto"),
+                                          "a_fazer": 0, "em_andamento": {}, "total_em_andamento": 0,
+                                          "travados": [], "concluidos_janela": 0}
+             for t in times_ if t.get("jira_projeto")}
+    fora: dict[str, int] = {}
+    for i in issues:
+        t = saida.get(i["projeto"])
+        if t is None:
+            fora[i["projeto"]] = fora.get(i["projeto"], 0) + 1
+            continue
+        if i["categoria"] == "done":
+            n = dias(i["concluido"])
+            if n is not None and 0 <= n <= janela_dias:
+                t["concluidos_janela"] += 1
+            continue
+        if i["categoria"] != "indeterminate":
+            t["a_fazer"] += 1
+            continue
+        t["em_andamento"][i["etapa"]] = t["em_andamento"].get(i["etapa"], 0) + 1
+        t["total_em_andamento"] += 1
+        motivos = []
+        if i["sinalizado"]:
+            motivos.append("sinalizado")
+        if i["bloqueado_por"]:
+            motivos.append("bloqueado por " + ", ".join(i["bloqueado_por"]))
+        if STATUS_TRAVADO_RE.search(i["etapa"]):
+            motivos.append(f"etapa \"{i['etapa']}\"")
+        parado = dias(i["atualizado"])
+        if parado is not None and parado >= parado_dias:
+            motivos.append(f"sem movimento há {parado} dias")
+        if motivos:
+            t["travados"].append({"key": i["key"], "resumo": i["resumo"], "etapa": i["etapa"], "motivos": motivos})
+    ordem = [str(t.get("jira_projeto")) for t in times_ if t.get("jira_projeto") in por_proj]
+    return {"gerado_em": d0.isoformat(), "janela_dias": janela_dias, "parado_dias": parado_dias,
+            "issues": len(issues), "times": [saida[p] for p in ordem], "fora_do_portfolio": fora}
+
+
+def render(rep: dict) -> str:
+    out = [f"Portfólio em {rep['gerado_em']} · janela de {rep['janela_dias']} dias · parado = "
+           f"{rep['parado_dias']}+ dias sem movimento", "",
+           "| Time | Em andamento | Travados | Concluídos na janela | A fazer |", "|---|---|---|---|---|"]
+    for t in rep["times"]:
+        out.append(f"| {t['nome']} ({t['jira_projeto']}) | {t['total_em_andamento']} | {len(t['travados'])} | "
+                   f"{t['concluidos_janela']} | {t['a_fazer']} |")
+    for t in rep["times"]:
+        if t["em_andamento"]:
+            out += ["", f"**{t['nome']}** · por etapa: " + ", ".join(f"{k} {v}" for k, v in t["em_andamento"].items())]
+        for tr in t["travados"]:
+            out.append(f"- {tr['key']} · {tr['resumo']} · {tr['etapa']} · {'; '.join(tr['motivos'])}")
+    if rep["fora_do_portfolio"]:
+        out += ["", "Fora do portfólio (projeto sem time na config): "
+                + ", ".join(f"{p} {n}" for p, n in rep["fora_do_portfolio"].items())]
+    return "\n".join(out)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", type=Path, default=None)
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("validar")
     s.add_argument("--json", action="store_true")
+    s = sub.add_parser("agregar")
+    s.add_argument("--entrada", action="append", required=True, help="JSON do resultado JQL (`-` = entrada padrão)")
+    s.add_argument("--janela", type=int, default=7, help="dias para contar concluídos (padrão 7)")
+    s.add_argument("--parado", type=int, default=5, help="dias sem movimento para contar como travado (padrão 5)")
+    s.add_argument("--hoje", help=argparse.SUPPRESS)
+    s.add_argument("--json", action="store_true")
+    s.add_argument("--gravar", action="store_true", help="grava tia/relatorios/<data>-portfolio.json")
     a = ap.parse_args(argv)
     root = a.root or DATA_ROOT
+    if a.cmd == "agregar":
+        cfg = load_config(root)
+        val = validar_times(cfg)
+        if val["erros"]:
+            print("[tia] times do portfólio inválidos: " + "; ".join(val["erros"]), file=sys.stderr)
+            return 1
+        if not times(cfg):
+            print("[tia] nenhum time em portfolio.times: diga \"Tia, configurar\" ou edite .tia/config.yaml",
+                  file=sys.stderr)
+            return 1
+        rep = agregar(carregar(a.entrada), times(cfg), a.janela, a.parado, a.hoje)
+        if a.gravar:
+            from _common import P, write_json
+
+            destino = P(root, "relatorios", f"{rep['gerado_em']}-portfolio.json")
+            write_json(destino, rep)
+            print(f"[tia] gravado: {destino.relative_to(root).as_posix()}", file=sys.stderr)
+        print(json.dumps(rep, ensure_ascii=False, indent=2) if a.json else render(rep))
+        return 0
     if a.cmd == "validar":
         rep = validar_times(load_config(root))
         if a.json:

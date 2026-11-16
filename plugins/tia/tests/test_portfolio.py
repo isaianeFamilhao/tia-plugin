@@ -85,3 +85,65 @@ def test_configurar_portfolio_invalido(tmp_path):
 def test_pm_sem_portfolio_nao_muda(proj, monkeypatch):
     monkeypatch.setattr(doctor, "venv_python", lambda data: None)
     assert "portfolio" not in por_nome(doctor.run_checks(proj))
+
+
+# ------------------------------------------------------------------ item 7: agregação sem pessoas
+import json  # noqa: E402
+
+from conftest import REPO  # noqa: E402
+
+FIXTURE = REPO / "tests" / "fixtures" / "jql_portfolio.json"
+PESSOAS = ("Maria", "Souza", "João", "Pereira", "Ana Lima", "Carla", "Dias", "@", "accountId", "557058",
+           "assignee", "reporter", "creator", "displayName", "emailAddress")
+TIMES = [{"nome": "Cadastro", "jira_projeto": "CAD"}, {"nome": "Pagamentos", "jira_projeto": "PAG", "board": "42"}]
+
+
+def rep_fixture():
+    return portfolio.agregar(portfolio.carregar([str(FIXTURE)]), TIMES, janela_dias=7, parado_dias=5, hoje="2026-11-16")
+
+
+def test_issue_limpa_descarta_pessoas():
+    raw = json.loads(FIXTURE.read_text(encoding="utf-8"))["issues"][0]
+    limpa = portfolio.issue_limpa(raw)
+    assert set(limpa) == {"key", "projeto", "tipo", "resumo", "etapa", "categoria", "atualizado", "concluido",
+                          "sinalizado", "bloqueado_por"}
+    texto = json.dumps(limpa, ensure_ascii=False)
+    assert not [p for p in PESSOAS if p in texto]
+
+
+def test_saida_sem_nenhum_nome():
+    rep = rep_fixture()
+    for texto in (json.dumps(rep, ensure_ascii=False), portfolio.render(rep)):
+        assert not [p for p in PESSOAS if p in texto], texto
+
+
+def test_contagens_batem_com_a_fixture():
+    rep = rep_fixture()
+    cad, pag = rep["times"]
+    assert rep["issues"] == 9 and rep["fora_do_portfolio"] == {"OUT": 1}
+    assert cad["em_andamento"] == {"Em desenvolvimento": 2, "Em revisão": 1} and cad["total_em_andamento"] == 3
+    assert cad["concluidos_janela"] == 1 and cad["a_fazer"] == 0
+    assert {t["key"]: t["motivos"] for t in cad["travados"]} == {
+        "CAD-2": ["sem movimento há 11 dias"], "CAD-3": ["sinalizado"]}
+    assert pag["em_andamento"] == {"Em desenvolvimento": 1, "Bloqueado": 1} and pag["a_fazer"] == 1
+    assert pag["concluidos_janela"] == 0
+    assert {t["key"]: t["motivos"] for t in pag["travados"]} == {
+        "PAG-10": ["bloqueado por PLAT-7"], "PAG-11": ["etapa \"Bloqueado\""]}
+
+
+def test_cli_agrega_e_grava_sem_pessoas(gpm, capsys):
+    assert portfolio.main(["--root", str(gpm), "agregar", "--entrada", str(FIXTURE), "--hoje", "2026-11-16",
+                           "--gravar"]) == 0
+    out = capsys.readouterr().out
+    assert "| Cadastro (CAD) | 3 | 2 | 1 | 0 |" in out and "| Pagamentos (PAG) | 2 | 2 | 0 | 1 |" in out
+    gravado = gpm / "tia" / "relatorios" / "2026-11-16-portfolio.json"
+    texto = gravado.read_text(encoding="utf-8")
+    assert not [p for p in PESSOAS if p in texto]
+    assert json.loads(texto)["times"][0]["nome"] == "Cadastro"
+
+
+def test_cli_recusa_sem_times(tmp_path, monkeypatch):
+    ws = tmp_path / "g"
+    ws.mkdir()
+    configurar.criar(ws, "G", "s", "c", ["CAD"], [], "sim", "gpm")
+    assert portfolio.main(["--root", str(ws), "agregar", "--entrada", str(FIXTURE)]) == 1
