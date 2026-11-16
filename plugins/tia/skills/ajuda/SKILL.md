@@ -5,7 +5,8 @@ description: Lista os comandos da Tia (skills, skills de apoio, gates e scripts)
 
 # /tia:ajuda
 
-1. Rode `TIA ajuda` (a lista de skills é lida do plugin na hora).
+1. Rode `TIA ajuda` (a lista de skills é lida do plugin na hora e só traz as do perfil desta pasta).
 2. Mostre a saída **como está**, sem resumir nem acrescentar comandos que não apareceram.
-3. Termine com uma linha: o próximo passo mais útil agora, a partir de `TIA ledger status`
+3. Termine com uma linha: o próximo passo mais útil agora. Perfil PM: a partir de `TIA ledger status`
    (ex.: "D-002 aguarda G2: rode /tia:abrir" ou "fila vazia: escreva uma demanda em tia/demandas.yaml").
+   Perfil GPM (não tem fila): a partir de `TIA metricas alertas` (ex.: "sem alertas: rode /tia:abrir").

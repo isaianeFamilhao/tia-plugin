@@ -16,3 +16,9 @@ aliases:
   configurar: [configurar, configura, configure, instalar, instala, prepara o projeto,
                "atualiza a configuracao => atualizar", "atualizar configuracao => atualizar", "configurar atualizar => atualizar"]
   ajuda: [ajuda, help, comandos, o que voce faz, quais comandos]
+# Pedidos em linguagem natural que pertencem a uma habilidade, mas não viram atalho (no perfil PM seguem para a
+# tabela de pedidos da tia:abrir). Servem para avisar, em uma linha, quando o pedido é de outro perfil.
+intencoes:
+  demanda: [escreve um epico, escreve o epico, escrever um epico, escreve epico, cria um epico, cria o epico,
+            refina o epico, refinar o epico, escreve as historias, escreve historias, historias para,
+            quebra em historias, nova demanda, cria uma demanda, abre uma demanda]

@@ -85,6 +85,35 @@ def resolver(texto: str, root: Path | None = None) -> tuple[str, str | None] | N
     return skill, arg
 
 
+def intencao(texto: str) -> str | None:
+    """Habilidade de um pedido "Tia, …" sem atalho (seção `intencoes` de modelos/aliases.yaml), ou None."""
+    m = CHAMADO_RE.match(texto or "")
+    if not m:
+        return None
+    resto = norm(m.group(1))
+    data = load_yaml(MODELOS / "aliases.yaml") or {}
+    for skill, frases in (data.get("intencoes") or {}).items():
+        for f in frases or []:
+            frase = norm(str(f))
+            if frase and (resto == frase or resto.startswith(frase + " ")):
+                return skill
+    return None
+
+
+def fora_do_perfil(texto: str, resolvido: tuple[str, str | None], perfil: str) -> str | None:
+    """Habilidade pedida que não existe no perfil desta pasta (atalho ou intenção), ou None."""
+    from _common import habilidade_disponivel
+
+    skill, arg = resolvido
+    if not habilidade_disponivel(skill, perfil):
+        return skill
+    if arg == ENCAMINHAR:
+        alvo = intencao(texto)
+        if alvo and not habilidade_disponivel(alvo, perfil):
+            return alvo
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("texto", nargs="?")

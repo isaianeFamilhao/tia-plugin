@@ -81,3 +81,68 @@ def test_resumo_injetado_continua_no_teto(proj, monkeypatch):
     ctx = hooks.run("session_start", {"session_id": "s1"})["hookSpecificOutput"]["additionalContext"]
     assert len(ctx) <= 9000 == hooks.TETO_CONTEXTO
     assert len(hooks.principios_texto()) < hooks.TETO_PRINCIPIOS
+
+
+# ------------------------------------------------------------------ item 3: habilidades por perfil
+def test_tabela_cobre_as_skills_do_plugin():
+    nomes = {p.parent.name for p in (_common.CODE_ROOT / "skills").glob("*/SKILL.md")}
+    assert set(_common.HABILIDADES) == nomes
+    assert all(set(v) <= set(_common.PERFIS) and v for v in _common.HABILIDADES.values())
+    assert _common.HABILIDADES["demanda"] == ("pm",)
+
+
+def test_ajuda_lista_so_as_do_perfil():
+    import ajuda
+
+    pm = {s["nome"] for s in ajuda.skills(_common.CODE_ROOT, "pm")}
+    gpm = {s["nome"] for s in ajuda.skills(_common.CODE_ROOT, "gpm")}
+    assert "demanda" in pm and "demanda" not in gpm and gpm == pm - {"demanda"}
+    texto = ajuda.render(_common.CODE_ROOT, "gpm")
+    assert "/tia:demanda" not in texto and "**G1**" not in texto and "coverage D-NNN" not in texto
+    assert "perfil GPM" in texto and "**K1**" in texto and "**M1**" in texto
+    assert "**G1**" in ajuda.render(_common.CODE_ROOT, "pm")
+
+
+def test_ajuda_le_o_perfil_da_pasta(proj, monkeypatch, capsys):
+    import ajuda
+
+    monkeypatch.setattr(_common, "DATA_ROOT", proj)
+    assert ajuda.perfil_da_pasta() == "pm"
+    com_perfil(proj, "gpm")
+    assert ajuda.perfil_da_pasta() == "gpm"
+    ajuda.main([])
+    assert "/tia:demanda" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("texto", ["Tia, escreve um épico sobre reprocessamento", "Tia, demanda D-001",
+                                   "Tia, histórias para o cadastro", "Tia, refina o épico IT-39"])
+def test_atalho_de_outro_perfil_recebe_uma_linha(proj, texto):
+    import hooks
+
+    com_perfil(proj, "gpm")
+    ctx = hooks.run("prompt", {"prompt": texto, "session_id": "s"})["hookSpecificOutput"]["additionalContext"]
+    assert "não invoque skill" in ctx and "perfil PM" in ctx and "perfil GPM" in ctx
+    assert "tia:demanda" not in ctx
+
+
+def test_perfil_pm_segue_igual(proj):
+    import aliases
+    import hooks
+
+    ctx = hooks.run("prompt", {"prompt": "Tia, escreve um épico sobre X"})["hookSpecificOutput"]["additionalContext"]
+    assert "tia:abrir" in ctx and "Pedidos em linguagem natural" in ctx         # proposta de demanda, como antes
+    ctx = hooks.run("prompt", {"prompt": "Tia, demanda D-002"})["hookSpecificOutput"]["additionalContext"]
+    assert "tia:demanda" in ctx and "D-002" in ctx
+    assert aliases.fora_do_perfil("Tia, escreve um épico", ("abrir", aliases.ENCAMINHAR), "pm") is None
+
+
+def test_gpm_mantem_as_outras_habilidades(proj):
+    import hooks
+
+    com_perfil(proj, "gpm")
+    ctx = hooks.run("prompt", {"prompt": "Tia, roda o semanal"})["hookSpecificOutput"]["additionalContext"]
+    assert "tia:report" in ctx and "semanal" in ctx
+    ctx = hooks.run("prompt", {"prompt": "Tia, puxa no Looker o funil"})["hookSpecificOutput"]["additionalContext"]
+    assert "tia:abrir" in ctx
+    ctx = hooks.run("session_start", {"session_id": "s1"})["hookSpecificOutput"]["additionalContext"]
+    assert "Perfil desta pasta: GPM" in ctx and len(ctx) <= hooks.TETO_CONTEXTO

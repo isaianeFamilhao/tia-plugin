@@ -435,6 +435,12 @@ def session_start(data: dict) -> dict | None:
     g2 = [k for k, v in led.items() if v.get("state") == "delivered"]
     if ready or g2:
         lines.append(f"{PREFIX} Prontas para G1: {', '.join(ready) or '—'} · aguardando G2: {', '.join(g2) or '—'}.")
+    try:
+        from _common import NOME_PERFIL, perfil
+
+        lines.append(f"{PREFIX} Perfil desta pasta: {NOME_PERFIL[perfil(root)]} (habilidades em /tia:ajuda).")
+    except Exception:  # noqa: BLE001 — config ilegível não derruba a abertura (o doctor acusa)
+        pass
     lines.append(f"{PREFIX} Sou a Tia: comece por /tia:abrir (ou 'Tia, bom dia'). Parte do time em CLAUDE.md.")
     blocos = [principios_texto(), "\n".join(lines)]
     try:
@@ -457,9 +463,21 @@ def prompt(data: dict) -> dict | None:
     """UserPromptSubmit: "Tia, <verbo>" no início da mensagem → invocar a skill do plugin."""
     import aliases
 
-    skill = aliases.resolver(str(data.get("prompt") or ""), root_of(data))
+    from _common import aviso_fora_do_perfil, perfil
+
+    texto = str(data.get("prompt") or "")
+    root = root_of(data)
+    skill = aliases.resolver(texto, root)
     if not skill:
         return None
+    try:
+        pf = perfil(root)
+    except Exception:  # noqa: BLE001 — config ilegível: atalhos seguem como no perfil padrão (o doctor acusa)
+        pf = "pm"
+    outro = aliases.fora_do_perfil(texto, skill, pf)
+    if outro:
+        return context("UserPromptSubmit", f"{PREFIX} Pedido de outro perfil: não invoque skill. Responda em uma "
+                                           f"linha: \"{aviso_fora_do_perfil(outro, pf)}\"")
     nome, arg = skill
     if arg == aliases.ENCAMINHAR:
         return context("UserPromptSubmit", f"{PREFIX} Chamado da Tia: invoque a skill tia:abrir e siga só a seção "

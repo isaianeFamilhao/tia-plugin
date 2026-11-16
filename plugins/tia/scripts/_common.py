@@ -298,6 +298,35 @@ def perfil(root: Path | None = None, cfg: dict | None = None) -> str:
     return v if v in PERFIS else PERFIL_PADRAO
 
 
+# Habilidade (skill do plugin) → perfis em que ela existe. Habilidade fora da tabela vale para todos.
+# Usada pela ajuda, pelo hook de atalhos "Tia, …" e pelos scripts que recusam fora do perfil.
+HABILIDADES: dict[str, tuple[str, ...]] = {
+    "abrir": PERFIS,
+    "demanda": ("pm",),          # fila de demandas, épicos e histórias: só no perfil PM
+    "base": PERFIS,
+    "confluence": PERFIS,
+    "metricas": PERFIS,
+    "okr": PERFIS,
+    "report": PERFIS,
+    "configurar": PERFIS,
+    "ajuda": PERFIS,
+}
+NOME_PERFIL = {"pm": "PM", "gpm": "GPM"}
+
+
+def habilidade_disponivel(nome: str, perfil_: str) -> bool:
+    return perfil_ in HABILIDADES.get(nome, PERFIS)
+
+
+def aviso_fora_do_perfil(nome: str, perfil_: str) -> str:
+    """Uma linha humana para habilidade de outro perfil."""
+    donos = " ou ".join(NOME_PERFIL[p] for p in HABILIDADES.get(nome, PERFIS))
+    if nome == "demanda":
+        return (f"Épico, histórias e fila de demandas são do perfil {donos}; esta pasta é do perfil "
+                f"{NOME_PERFIL[perfil_]}. Isso fica na pasta da PM do time.")
+    return f"/tia:{nome} é do perfil {donos}; esta pasta é do perfil {NOME_PERFIL[perfil_]}."
+
+
 # ------------------------------------------------------------------ padrões do workspace
 def frontmatter(path: Path) -> tuple[dict, str]:
     """(metadados YAML, corpo) de um .md com frontmatter `---`; sem frontmatter: ({}, texto)."""

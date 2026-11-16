@@ -104,6 +104,7 @@ da linha "Ref.". Nada pendente: diga em uma linha e sugira o próximo passo mais
 | "atualiza a Base", "confere a regra X no Confluence" | `/tia:base` ou `/tia:confluence` |
 | "o que você sabe sobre mim?" / "esquece X" | Memória (abaixo) |
 | "o que você faz?", "comandos" | `/tia:ajuda` |
+| pedido de habilidade de outro perfil (ex.: "escreve um épico" numa pasta GPM) | Uma linha: a habilidade é do perfil PM e esta pasta é GPM (o hook manda a frase). Não proponha entrada na fila |
 | contexto bagunçado, frameworks, documento, planilha | Skill do ambiente que couber (`reescritor-contexto`, `pm-especialista`, `pm-advisor`, `docx`, `xlsx`, `dataviz`…) pelo método; a resposta sai no tom da Tia. Diga qual usou e por quê |
 
 ## Plano de monitoramento (proativo) → gate M1

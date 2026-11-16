@@ -1,7 +1,8 @@
 """Lista os comandos da Tia: skills do plugin (lidas de skills/ na hora), aliases, skills de apoio,
-gates e scripts. Usado pela skill /tia:ajuda. Zero tokens.
+gates e scripts. Usado pela skill /tia:ajuda. Zero tokens. Lista só o que existe no perfil desta pasta
+(`perfil` no config do time; sem a chave, PM).
 
-    tia.sh ajuda [--json]
+    tia.sh ajuda [--json] [--perfil pm|gpm]
 """
 from __future__ import annotations
 
@@ -13,6 +14,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import CODE_ROOT as REPO_ROOT  # noqa: E402
+from _common import NOME_PERFIL, PERFIL_PADRAO, PERFIS, habilidade_disponivel  # noqa: E402
+
+# Gates e scripts da fila de demandas: só no perfil PM (a habilidade `demanda` é só do PM).
+SO_PM = {"G1", "G2", "G3", "ledger status", "coverage D-NNN"}
 
 # Ordem de uso no dia a dia; skill nova que não estiver aqui entra no fim, em ordem alfabética.
 ORDER = ("abrir", "demanda", "metricas", "okr", "report", "base", "confluence", "configurar", "ajuda")
@@ -92,23 +97,51 @@ def cell(text: str) -> str:
     return text.replace("|", "\\|")
 
 
-def skills(root: Path = REPO_ROOT) -> list[dict]:
-    found = [s for p in sorted((root / "skills").glob("*/SKILL.md")) if (s := read_skill(p))]
+def skills(root: Path = REPO_ROOT, perfil: str = PERFIL_PADRAO) -> list[dict]:
+    found = [s for p in sorted((root / "skills").glob("*/SKILL.md"))
+             if (s := read_skill(p)) and habilidade_disponivel(s["nome"], perfil)]
     rank = {n: i for i, n in enumerate(ORDER)}
     return sorted(found, key=lambda s: (rank.get(s["nome"], len(ORDER)), s["nome"]))
 
 
-def render(root: Path = REPO_ROOT) -> str:
-    out = ["# Comandos da Tia", "", "Tia — transforma pedidos em épicos e histórias que cobrem as regras de negócio e acompanha nos dados se a entrega moveu as métricas.", "", "## Skills da Tia", "", "| Comando | O que faz |", "|---|---|"]
-    out += [f"| `{cell(s['uso'])}` | {cell(s['descricao'])} |" for s in skills(root)]
+def apoio(perfil: str = PERFIL_PADRAO) -> list[tuple[str, str]]:
+    return [s for s in SUPPORT if perfil == "pm" or "épico" not in s[0]]
+
+
+def gates(perfil: str = PERFIL_PADRAO) -> list[tuple[str, str, str]]:
+    return [g for g in GATES if perfil == "pm" or g[0] not in SO_PM]
+
+
+def scripts(perfil: str = PERFIL_PADRAO) -> list[tuple[str, str]]:
+    return [s for s in SCRIPTS if perfil == "pm" or s[0] not in SO_PM]
+
+
+def perfil_da_pasta() -> str:
+    try:
+        from _common import DATA_ROOT, is_workspace, perfil
+
+        return perfil(DATA_ROOT) if is_workspace(DATA_ROOT) else PERFIL_PADRAO
+    except Exception:  # noqa: BLE001 — sem PyYAML ou config ilegível: lista o perfil padrão (o doctor acusa)
+        return PERFIL_PADRAO
+
+
+def render(root: Path = REPO_ROOT, perfil: str = PERFIL_PADRAO) -> str:
+    resumo = ("transforma pedidos em épicos e histórias que cobrem as regras de negócio e acompanha nos dados se a "
+              "entrega moveu as métricas." if perfil == "pm" else
+              "copiloto de quem lidera um grupo de produto: métricas, OKRs, relatórios, Base de Conhecimento e "
+              "Confluence; épico, histórias e fila de demandas ficam na pasta de cada PM.")
+    quem = "Tia" if perfil == PERFIL_PADRAO else f"Tia (perfil {NOME_PERFIL[perfil]})"
+    out = ["# Comandos da Tia", "", f"{quem} — {resumo}", "", "## Skills da Tia", "",
+           "| Comando | O que faz |", "|---|---|"]
+    out += [f"| `{cell(s['uso'])}` | {cell(s['descricao'])} |" for s in skills(root, perfil)]
     out += ["", "## Skills de apoio (da conta)", "", "| Comando | O que faz |", "|---|---|"]
-    out += [f"| `{c}` | {d} |" for c, d in SUPPORT]
+    out += [f"| `{c}` | {d} |" for c, d in apoio(perfil)]
     out += ["", "## Gates (só com a sua resposta)", "", "| Gate | Decisão | Onde |", "|---|---|---|"]
-    out += [f"| **{g}** | {d} | {w} |" for g, d, w in GATES]
+    out += [f"| **{g}** | {d} | {w} |" for g, d, w in gates(perfil)]
     out += ["", '## Scripts (`bash "<plugin>/scripts/tia.sh" <script>`)', "", "| Script | Para quê |", "|---|---|"]
-    out += [f"| `{cell(c)}` | {cell(d)} |" for c, d in SCRIPTS]
+    out += [f"| `{cell(c)}` | {cell(d)} |" for c, d in scripts(perfil)]
     out += ["", "## Exemplos", "",
-            "- \"Tia, bom dia\" → alertas, o que espera decisão sua, fila.",
+            "- \"Tia, bom dia\" → alertas, o que espera decisão sua" + (", fila." if perfil == "pm" else "."),
             "- \"Tia, puxa no Looker como foi o funil de cadastro na última semana\" → diagnóstico a partir dos dados.",
             "- \"Tia, quais métricas para a busca com IA?\" → /tia:metricas: o que medir, o que dá para medir hoje e o tracking que falta.",
             "- \"Tia, vou fechar o épico X. O que monitorar?\" → plano de monitoramento para ativar (M1).",
@@ -122,12 +155,14 @@ def render(root: Path = REPO_ROOT) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--perfil", choices=PERFIS, help="padrão: o perfil desta pasta")
     a = ap.parse_args(argv)
+    pf = a.perfil or perfil_da_pasta()
     if a.json:
-        print(json.dumps({"skills": skills(), "apoio": SUPPORT, "gates": GATES, "scripts": SCRIPTS},
-                         ensure_ascii=False, indent=2))
+        print(json.dumps({"perfil": pf, "skills": skills(perfil=pf), "apoio": apoio(pf), "gates": gates(pf),
+                          "scripts": scripts(pf)}, ensure_ascii=False, indent=2))
     else:
-        print(render())
+        print(render(perfil=pf))
     return 0
 
 
