@@ -4,8 +4,9 @@ from conftest import REPO
 
 def test_lista_todas_as_skills_do_projeto():
     nomes = {p.parent.name for p in (REPO / "skills").glob("*/SKILL.md")}
-    listadas = {s["nome"] for s in ajuda.skills(REPO)}
-    assert nomes == listadas
+    por_perfil = {pf: {s["nome"] for s in ajuda.skills(REPO, pf)} for pf in ("pm", "gpm")}
+    assert por_perfil["pm"] | por_perfil["gpm"] == nomes          # cada skill aparece em algum perfil
+    assert {s["nome"] for s in ajuda.skills(REPO)} == por_perfil["pm"]   # padrão: perfil PM
     assert [s["nome"] for s in ajuda.skills(REPO)][:2] == ["abrir", "demanda"]
 
 

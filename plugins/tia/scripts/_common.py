@@ -303,6 +303,7 @@ def perfil(root: Path | None = None, cfg: dict | None = None) -> str:
 HABILIDADES: dict[str, tuple[str, ...]] = {
     "abrir": PERFIS,
     "demanda": ("pm",),          # fila de demandas, épicos e histórias: só no perfil PM
+    "portfolio": ("gpm",),       # situação dos times do grupo: só no perfil GPM
     "base": PERFIS,
     "confluence": PERFIS,
     "metricas": PERFIS,

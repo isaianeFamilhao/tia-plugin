@@ -18,12 +18,15 @@ from _common import NOME_PERFIL, PERFIL_PADRAO, PERFIS, habilidade_disponivel  #
 
 # Gates e scripts da fila de demandas: só no perfil PM (a habilidade `demanda` é só do PM).
 SO_PM = {"G1", "G2", "G3", "ledger status", "coverage D-NNN"}
+# Scripts do portfólio: só no perfil GPM.
+SO_GPM = {"portfolio validar|agregar"}
 
 # Ordem de uso no dia a dia; skill nova que não estiver aqui entra no fim, em ordem alfabética.
-ORDER = ("abrir", "demanda", "metricas", "okr", "report", "base", "confluence", "configurar", "ajuda")
+ORDER = ("abrir", "demanda", "portfolio", "metricas", "okr", "report", "base", "confluence", "configurar", "ajuda")
 USAGE = {
     "abrir": "/tia:abrir  ·  \"Tia, bom dia\"",
     "demanda": "/tia:demanda D-NNN",
+    "portfolio": "/tia:portfolio [janela em dias] [time]",
     "metricas": "/tia:metricas <feature|épico|OKR>",
     "okr": "/tia:okr <ciclo e time | OKR a revisar>",
     "report": "/tia:report diario|semanal",
@@ -40,6 +43,7 @@ SUMMARY = {
     "metricas": "Métricas de outcome: principal + guardrails, dados disponíveis e tracking spec; barra vaidade.",
     "okr": "OKRs pragmáticos: calibra pelo momento do time, KRs de X para Y, adaptações, guardrail e iniciativas à parte.",
     "report": "Diário (alertas, pós-deploy, bloqueios) ou semanal (OKRs contra a meta e ajuste de rota).",
+    "portfolio": "Situação dos times do grupo no Jira: em andamento, travados e entregas, com causa e próximo passo; sem pessoas.",
     "demanda": "Executa uma demanda aprovada: pesquisa, épico, histórias, cobertura, revisor cético e entrega.",
     "confluence": "Consulta o Confluence; mantém o espaço do time (com C1); os demais só leitura; registra apontamentos.",
     "base": "Confere a Base de Conhecimento contra Confluence/Jira e propõe mudanças (K1).",
@@ -68,6 +72,7 @@ SCRIPTS = [
     ("memoria listar|contexto", "O que a Tia aprendeu (time, pessoal, global) e o que entra no início da sessão"),
     ("aliases --listar", "Atalhos \"Tia, …\" do plugin e do seu pessoal.md"),
     ("coverage D-NNN", "Avaliador: matriz regra × critério da entrega"),
+    ("portfolio validar|agregar", "Times do grupo e agregação do Jira por time, sem pessoas"),
     ("report", "Relatório de demandas, cobertura e consumo"),
     ("doctor", "Diagnóstico: Python, Git Bash, ambiente do plugin, workspace, modelos, Base e fila"),
 ]
@@ -113,7 +118,7 @@ def gates(perfil: str = PERFIL_PADRAO) -> list[tuple[str, str, str]]:
 
 
 def scripts(perfil: str = PERFIL_PADRAO) -> list[tuple[str, str]]:
-    return [s for s in SCRIPTS if perfil == "pm" or s[0] not in SO_PM]
+    return [s for s in SCRIPTS if (perfil == "pm" or s[0] not in SO_PM) and (perfil == "gpm" or s[0] not in SO_GPM)]
 
 
 def perfil_da_pasta() -> str:

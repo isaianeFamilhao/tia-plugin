@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import MODELOS, load_yaml  # noqa: E402
 
-SKILLS = ("abrir", "demanda", "base", "confluence", "metricas", "okr", "report", "configurar", "ajuda")
+SKILLS = ("abrir", "demanda", "portfolio", "base", "confluence", "metricas", "okr", "report", "configurar", "ajuda")
 ENCAMINHAR = "encaminhar"
 CHAMADO_RE = re.compile(r"^\s*tia\s*,\s*(.*)$", re.IGNORECASE | re.DOTALL)
 ATALHO_RE = re.compile(r"^\s*[-*]\s*(.+?)\s*(?:→|->|=>)\s*([a-z]+)(?:\s+(\S.*?))?\s*$")

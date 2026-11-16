@@ -96,7 +96,7 @@ def test_ajuda_lista_so_as_do_perfil():
 
     pm = {s["nome"] for s in ajuda.skills(_common.CODE_ROOT, "pm")}
     gpm = {s["nome"] for s in ajuda.skills(_common.CODE_ROOT, "gpm")}
-    assert "demanda" in pm and "demanda" not in gpm and gpm == pm - {"demanda"}
+    assert "demanda" in pm and "demanda" not in gpm and gpm == (pm - {"demanda"}) | {"portfolio"}
     texto = ajuda.render(_common.CODE_ROOT, "gpm")
     assert "/tia:demanda" not in texto and "**G1**" not in texto and "coverage D-NNN" not in texto
     assert "perfil GPM" in texto and "**K1**" in texto and "**M1**" in texto

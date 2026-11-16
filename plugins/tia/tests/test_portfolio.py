@@ -147,3 +147,37 @@ def test_cli_recusa_sem_times(tmp_path, monkeypatch):
     ws.mkdir()
     configurar.criar(ws, "G", "s", "c", ["CAD"], [], "sim", "gpm")
     assert portfolio.main(["--root", str(ws), "agregar", "--entrada", str(FIXTURE)]) == 1
+
+
+# ------------------------------------------------------------------ item 8: habilidade /tia:portfolio (GPM)
+def test_habilidade_so_no_gpm():
+    import ajuda
+
+    assert _common.HABILIDADES["portfolio"] == ("gpm",)
+    gpm_txt = ajuda.render(_common.CODE_ROOT, "gpm")
+    pm_txt = ajuda.render(_common.CODE_ROOT, "pm")
+    assert "/tia:portfolio" in gpm_txt and "portfolio validar" in gpm_txt
+    assert "portfolio" not in pm_txt                       # a ajuda do PM segue igual
+
+
+def test_atalho_portfolio_por_perfil(proj):
+    import aliases
+    import hooks
+
+    assert aliases.resolver("Tia, como estão os times?", proj) == ("portfolio", None)
+    ctx = hooks.run("prompt", {"prompt": "Tia, situação do portfólio"})["hookSpecificOutput"]["additionalContext"]
+    assert "não invoque skill" in ctx and "perfil GPM; esta pasta é do perfil PM" in ctx
+    p = proj / ".tia" / "config.yaml"
+    p.write_text("perfil: gpm\n" + p.read_text(encoding="utf-8"), encoding="utf-8")
+    ctx = hooks.run("prompt", {"prompt": "Tia, como estão os times"})["hookSpecificOutput"]["additionalContext"]
+    assert "invoque a skill tia:portfolio" in ctx
+
+
+def test_roteiro_consulta_so_leitura_sem_pessoas():
+    texto = (_common.CODE_ROOT / "skills" / "portfolio" / "SKILL.md").read_text(encoding="utf-8")
+    assert "searchJiraIssuesUsingJql" in texto and "portfolio agregar" in texto and "--gravar" in texto
+    assert "**Nunca peça** `assignee`, `reporter`, `creator`, `comment`" in texto
+    assert "tia/relatorios/<data>-portfolio.md" in texto and "fora do projeto" in texto
+    assert "perfil: gpm" in texto and "e pare" in texto
+    for proibido in ("createJira", "editJira", "transitionJira", "addComment"):
+        assert proibido not in texto

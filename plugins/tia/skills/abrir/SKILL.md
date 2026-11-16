@@ -97,6 +97,7 @@ da linha "Ref.". Nada pendente: diga em uma linha e sugira o próximo passo mais
 |---|---|
 | "escreve/refina o épico X", "histórias para Y" | Proponha a entrada para `tia/demandas.yaml` (a PM cola) e siga o G1 |
 | "puxa no <fonte> como foi <métrica/funil>" | Consulta só leitura na fonte conectada → diagnóstico (o que mudou, causa provável, próximo passo). `dataviz` se um gráfico ajudar. Fonte nova → proponha guardar na Memória |
+| "como estão os times?", "o que está travado?" (perfil GPM) | `/tia:portfolio` |
 | "quais métricas para X?", "como medir X?" | `/tia:metricas` |
 | "fecha/revisa os OKRs", "desdobra o OKR da empresa" | `/tia:okr` |
 | "vou fechar o épico X, o que monitorar?" | `/tia:metricas`, depois plano de monitoramento (abaixo) |

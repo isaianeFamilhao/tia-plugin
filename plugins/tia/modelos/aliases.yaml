@@ -7,6 +7,8 @@ aliases:
   abrir: [bom dia, boa tarde, boa noite, abrir, abre, abre a fila, ver a fila, mostra a fila, fila, retomar, retoma,
           o que esta pendente, o que tem pendente, pendencias, tem algum alerta, alertas, status]
   demanda: [demanda, executa a demanda, executar a demanda, roda a demanda, toca a demanda, comeca a demanda]
+  portfolio: [portfolio, portifolio, como estao os times, situacao dos times, situacao do portfolio,
+              o que esta travado nos times, travas dos times]
   base: [base, atualiza a base, atualizar a base, revisa a base, revisar a base, base de conhecimento]
   confluence: [confluence, consulta no confluence, documenta no confluence, apontamentos]
   metricas: [metricas, metrica, quais metricas, como medir, define as metricas]
