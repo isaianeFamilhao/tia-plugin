@@ -169,13 +169,19 @@ def _conteudo(out: list[dict], root: Path) -> None:
     import memoria
     import metricas
     import validate
-    from _common import config_sobreposicoes_ignoradas
+    from _common import PERFIS, config_sobreposicoes_ignoradas, load_config, perfil_bruto, perfil_valido
 
     _modelos(out, configurar.status(root))
     ign = config_sobreposicoes_ignoradas(root)
     if ign:
         out.append(check("AVISO", "config", f".tia/config.yaml tenta mudar regras inegociáveis (ignoradas): {', '.join(ign)}",
                          "retire essas chaves do config do time"))
+    cfg = load_config(root)
+    if perfil_valido(cfg):
+        out.append(check("OK", "perfil", f"perfil desta pasta: {perfil_bruto(cfg).upper()}"))
+    else:
+        out.append(check("FALHA", "perfil", f"perfil \"{perfil_bruto(cfg)}\" não existe em .tia/config.yaml",
+                         f"corrija a chave `perfil` para {' ou '.join(PERFIS)} (sem a chave, vale pm)"))
     rep = kbmod.validate_kb(root)
     if not rep["ok"]:
         out.append(check("FALHA", "kb", f"Base de Conhecimento inválida: {len(rep['erros'])} erro(s): "

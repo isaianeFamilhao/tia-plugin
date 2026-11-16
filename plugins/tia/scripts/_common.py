@@ -275,6 +275,29 @@ def config_sobreposicoes_ignoradas(root: Path | None = None) -> list[str]:
     return [k for k in INEGOCIAVEIS if _get(ws, k) is not KeyError]
 
 
+# ------------------------------------------------------------------ perfil da pasta (PM ou GPM)
+# Chave `perfil` do config do time. Sem a chave, vale `pm` (workspaces anteriores não mudam de comportamento).
+PERFIS = ("pm", "gpm")
+PERFIL_PADRAO = "pm"
+
+
+def perfil_bruto(cfg: dict) -> str:
+    """Valor de `perfil` como está no config (minúsculo, sem espaços); ausente = `pm`."""
+    v = (cfg or {}).get("perfil")
+    return PERFIL_PADRAO if v is None else str(v).strip().lower()
+
+
+def perfil_valido(cfg: dict) -> bool:
+    return perfil_bruto(cfg) in PERFIS
+
+
+def perfil(root: Path | None = None, cfg: dict | None = None) -> str:
+    """Perfil desta pasta. Valor inválido vale `pm` aqui; o doctor acusa FALHA."""
+    cfg = cfg if cfg is not None else load_config(root)
+    v = perfil_bruto(cfg)
+    return v if v in PERFIS else PERFIL_PADRAO
+
+
 # ------------------------------------------------------------------ padrões do workspace
 def frontmatter(path: Path) -> tuple[dict, str]:
     """(metadados YAML, corpo) de um .md com frontmatter `---`; sem frontmatter: ({}, texto)."""
