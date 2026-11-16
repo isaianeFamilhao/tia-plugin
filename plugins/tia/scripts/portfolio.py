@@ -3,7 +3,8 @@
     tia.sh portfolio validar [--json]       # confere portfolio.times do .tia/config.yaml
     tia.sh portfolio agregar --entrada <resultado-jql.json> [--entrada …] [--janela 7] [--parado 5] [--json]
                              [--gravar]     # grava tia/relatorios/<data>-portfolio.json (já sem pessoas)
-    tia.sh portfolio ultimo [--resumo] [--json]   # último retrato gravado (a abertura do GPM usa o resumo)
+    tia.sh portfolio ultimo [--resumo|--tabela] [--json]   # último retrato gravado (abertura: resumo;
+                                                           # semanal de portfólio: tabela por time)
 
 `portfolio.times` (perfil GPM): lista de times, cada um com `nome`, `jira_projeto` (chave do projeto) e, se
 quiser, `board` (id do quadro). Sem pessoas na config: o portfólio é por time, nunca por responsável.
@@ -266,6 +267,29 @@ def resumo(rep: dict, hoje: str | None = None) -> str:
     return "\n".join(out)
 
 
+def situacao(t: dict) -> str:
+    """Regra fixa por time: sem travas = no ritmo; metade ou mais do WIP travado = travado; senão atenção."""
+    n = len(t.get("travados") or [])
+    if not n:
+        return "no ritmo"
+    return "travado" if 2 * n >= max(t.get("total_em_andamento") or 0, 1) else "atenção"
+
+
+def tabela(rep: dict) -> str:
+    """Semanal de portfólio (GPM): uma linha por time com WIP, travas, entregas da janela e situação."""
+    out = [f"Retrato do portfólio de {rep['gerado_em']} · entregas = concluídos nos últimos {rep['janela_dias']} dias",
+           "", "| Time | WIP (em andamento) | Travas | Entregas | Situação |", "|---|---|---|---|---|"]
+    tot = {"wip": 0, "trav": 0, "ent": 0}
+    for t in rep.get("times") or []:
+        n = len(t["travados"])
+        tot["wip"] += t["total_em_andamento"]
+        tot["trav"] += n
+        tot["ent"] += t["concluidos_janela"]
+        out.append(f"| {t['nome']} | {t['total_em_andamento']} | {n} | {t['concluidos_janela']} | {situacao(t)} |")
+    out.append(f"| **Grupo** | {tot['wip']} | {tot['trav']} | {tot['ent']} | |")
+    return "\n".join(out)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", type=Path, default=None)
@@ -281,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--gravar", action="store_true", help="grava tia/relatorios/<data>-portfolio.json")
     s = sub.add_parser("ultimo")
     s.add_argument("--resumo", action="store_true")
+    s.add_argument("--tabela", action="store_true", help="tabela do semanal de portfólio (WIP, travas, entregas)")
     s.add_argument("--json", action="store_true")
     s.add_argument("--hoje", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
@@ -293,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
         if a.json:
             print(json.dumps(rep, ensure_ascii=False, indent=2))
         else:
-            print(resumo(rep, a.hoje) if a.resumo else render(rep))
+            print(resumo(rep, a.hoje) if a.resumo else tabela(rep) if a.tabela else render(rep))
         return 0
     if a.cmd == "agregar":
         cfg = load_config(root)
