@@ -1,6 +1,11 @@
 # tia-plugin
 
-Marketplace interno da **Tia**, assistente de produto para Product Managers, como plugin do Claude Code.
+Marketplace interno da **Tia**, um **harness de produto** para Product Managers, como plugin do Claude Code.
+
+Harness de produto é a estrutura que envolve o modelo e faz o trabalho de produto seguir regras, não só boa
+vontade: skills com roteiro, hooks que barram o que está fora do escopo, avaliadores determinísticos que
+reprovam entrega incompleta, um registro de estado em disco e gates que só a humana aprova. O modelo redige; o
+harness garante fonte, cobertura e aprovação.
 
 A Tia transforma pedidos em épicos e histórias com critérios de aceite que cobrem as regras de negócio, mantém
 uma Base de Conhecimento com a fonte de cada regra, pede aprovação humana antes de decidir ou publicar (gates) e

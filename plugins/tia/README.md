@@ -5,13 +5,29 @@ agentes (LLMs) que trabalham num projeto com a Tia.
 
 ## O que é e para quem
 
-A **Tia** é uma assistente de produto para Product Managers que usam o Claude Code. Ela transforma um pedido em
+A **Tia** é um **harness de produto**: uma assistente de produto para Product Managers que usam o Claude Code,
+cercada de regras que o modelo não consegue ignorar. Ela transforma um pedido em
 **épico e histórias prontos para o time**, com critérios de aceite que cobrem as regras de negócio, cada regra
 com a fonte de onde veio. Mantém uma **Base de Conhecimento** do time, pede **aprovação humana** (gates) antes de
 qualquer decisão ou publicação e **acompanha nos dados** se a entrega moveu as métricas.
 
 Ela consulta o Confluence, o Jira e as fontes de dados conectadas na sua conta do Claude. Não escreve nem executa
 código de aplicação.
+
+### Por que harness
+
+Um prompt pede; um harness garante. A Tia não depende de o modelo lembrar das regras. Ela tem:
+
+| Peça | O que garante |
+|---|---|
+| Skills com roteiro (`/tia:*`) | O mesmo método a cada demanda: pesquisa com fonte, épico no padrão, histórias, cobertura, revisão. |
+| Hooks | Escrita só em `tia/`, Jira e Confluence só com gate, dados só leitura. O que foge disso é negado, e hook com erro nega (fail-closed). |
+| Avaliadores determinísticos | `coverage` reprova a entrega se uma regra relevante ficou sem critério; `kb validar` reprova regra da Base sem fonte; o Stop não deixa a sessão terminar com entrega reprovada. |
+| Registro de estado (`.tia/ledger.json`) | O estado das demandas fica no disco, não na conversa. Retomar é ler o ledger. |
+| Gates humanos | G1, G2, K1, G3, C1, M1 e Memória só avançam com resposta explícita da PM. |
+
+Origem: a Tia nasceu como harness de produto num workspace (`harness-cowork`) e virou plugin na 0.1.0
+([CHANGELOG](CHANGELOG.md)).
 
 ## Sumário
 
