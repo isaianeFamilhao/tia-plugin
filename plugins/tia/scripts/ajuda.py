@@ -35,6 +35,10 @@ USAGE = {
     "configurar": "/tia:configurar [atualizar]",
     "ajuda": "/tia:ajuda",
 }
+# No perfil GPM, o report tem o semanal de portfólio e o relatório para a diretoria.
+USAGE_GPM = {"report": "/tia:report diario|semanal|diretoria"}
+SUMMARY_GPM = {"report": "Diário, semanal de portfólio (times, OKRs do grupo, ajuste de rota) ou relatório para a "
+                         "diretoria (situação, riscos, decisões pedidas)."}
 # Resumo curto das skills conhecidas; skill nova usa a 1ª frase da própria descrição.
 SUMMARY = {
     "ajuda": "Esta lista: skills, atalhos, skills de apoio, gates e scripts.",
@@ -72,7 +76,7 @@ SCRIPTS = [
     ("memoria listar|contexto", "O que a Tia aprendeu (time, pessoal, global) e o que entra no início da sessão"),
     ("aliases --listar", "Atalhos \"Tia, …\" do plugin e do seu pessoal.md"),
     ("coverage D-NNN", "Avaliador: matriz regra × critério da entrega"),
-    ("portfolio validar|agregar|ultimo", "Times do grupo, agregação do Jira por time (sem pessoas) e último retrato"),
+    ("portfolio validar|agregar|ultimo", "Times do grupo, agregação do Jira por time (sem pessoas) e último retrato (resumo, tabela do semanal, executivo da diretoria)"),
     ("report", "Relatório de demandas, cobertura e consumo"),
     ("doctor", "Diagnóstico: Python, Git Bash, ambiente do plugin, workspace, modelos, Base e fila"),
 ]
@@ -105,6 +109,9 @@ def cell(text: str) -> str:
 def skills(root: Path = REPO_ROOT, perfil: str = PERFIL_PADRAO) -> list[dict]:
     found = [s for p in sorted((root / "skills").glob("*/SKILL.md"))
              if (s := read_skill(p)) and habilidade_disponivel(s["nome"], perfil)]
+    if perfil == "gpm":
+        found = [{**s, "uso": USAGE_GPM.get(s["nome"], s["uso"]), "descricao": SUMMARY_GPM.get(s["nome"], s["descricao"])}
+                 for s in found]
     rank = {n: i for i, n in enumerate(ORDER)}
     return sorted(found, key=lambda s: (rank.get(s["nome"], len(ORDER)), s["nome"]))
 

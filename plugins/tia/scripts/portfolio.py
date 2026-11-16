@@ -3,8 +3,8 @@
     tia.sh portfolio validar [--json]       # confere portfolio.times do .tia/config.yaml
     tia.sh portfolio agregar --entrada <resultado-jql.json> [--entrada …] [--janela 7] [--parado 5] [--json]
                              [--gravar]     # grava tia/relatorios/<data>-portfolio.json (já sem pessoas)
-    tia.sh portfolio ultimo [--resumo|--tabela] [--json]   # último retrato gravado (abertura: resumo;
-                                                           # semanal de portfólio: tabela por time)
+    tia.sh portfolio ultimo [--resumo|--tabela|--executivo] [--json]   # último retrato gravado (abertura:
+                                    # resumo; semanal de portfólio: tabela por time; diretoria: executivo)
 
 `portfolio.times` (perfil GPM): lista de times, cada um com `nome`, `jira_projeto` (chave do projeto) e, se
 quiser, `board` (id do quadro). Sem pessoas na config: o portfólio é por time, nunca por responsável.
@@ -290,6 +290,28 @@ def tabela(rep: dict) -> str:
     return "\n".join(out)
 
 
+def executivo(rep: dict) -> str:
+    """Relatório para a diretoria: situação do grupo em poucas linhas, por time e sem detalhe de item."""
+    ts = rep.get("times") or []
+    grupos: dict[str, list[str]] = {"travado": [], "atenção": [], "no ritmo": []}
+    for t in ts:
+        grupos[situacao(t)].append(t["nome"])
+    wip = sum(t["total_em_andamento"] for t in ts)
+    trav = sum(len(t["travados"]) for t in ts)
+    ent = sum(t["concluidos_janela"] for t in ts)
+    out = [f"Retrato de {rep['gerado_em']}: {len(ts)} time(s) · {wip} em andamento · {trav} travado(s) · "
+           f"{ent} entrega(s) em {rep['janela_dias']} dias"]
+    for sit in ("travado", "atenção", "no ritmo"):
+        if grupos[sit]:
+            out.append(f"- {sit.capitalize()}: {', '.join(grupos[sit])}")
+    externos = sorted({k.split("-")[0] for t in ts for tr in t["travados"] for m in tr["motivos"]
+                       if m.startswith("bloqueado por ") for k in m[len("bloqueado por "):].split(", ")}
+                      - {str(t.get("jira_projeto")) for t in ts})
+    if externos:
+        out.append(f"- Dependência de fora do grupo: {', '.join(externos)}")
+    return "\n".join(out)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", type=Path, default=None)
@@ -306,6 +328,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("ultimo")
     s.add_argument("--resumo", action="store_true")
     s.add_argument("--tabela", action="store_true", help="tabela do semanal de portfólio (WIP, travas, entregas)")
+    s.add_argument("--executivo", action="store_true", help="situação do grupo para o relatório da diretoria")
     s.add_argument("--json", action="store_true")
     s.add_argument("--hoje", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
@@ -318,7 +341,8 @@ def main(argv: list[str] | None = None) -> int:
         if a.json:
             print(json.dumps(rep, ensure_ascii=False, indent=2))
         else:
-            print(resumo(rep, a.hoje) if a.resumo else tabela(rep) if a.tabela else render(rep))
+            print(resumo(rep, a.hoje) if a.resumo else tabela(rep) if a.tabela
+                  else executivo(rep) if a.executivo else render(rep))
         return 0
     if a.cmd == "agregar":
         cfg = load_config(root)

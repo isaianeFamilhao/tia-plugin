@@ -14,7 +14,8 @@ aliases:
   metricas: [metricas, metrica, quais metricas, como medir, define as metricas]
   okr: [okr, okrs, fecha os okrs, fechar os okrs, revisa os okrs, desdobra o okr]
   report: [report, relatorio, "gera o diario => diario", "roda o diario => diario", "diario => diario",
-           "gera o semanal => semanal", "roda o semanal => semanal", "semanal => semanal", "report dos okrs => semanal"]
+           "gera o semanal => semanal", "roda o semanal => semanal", "semanal => semanal", "report dos okrs => semanal",
+           "relatorio para a diretoria => diretoria", "relatorio da diretoria => diretoria", "diretoria => diretoria"]
   configurar: [configurar, configura, configure, instalar, instala, prepara o projeto,
                "atualiza a configuracao => atualizar", "atualizar configuracao => atualizar", "configurar atualizar => atualizar"]
   ajuda: [ajuda, help, comandos, o que voce faz, quais comandos]

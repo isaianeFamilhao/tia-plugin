@@ -119,6 +119,7 @@ Memória), apontamentos e fontes. Sem nomes de pessoas: times pelo nome, colegas
 | "fecha/revisa os OKRs", "desdobra o OKR da empresa" | `/tia:okr` |
 | "vou fechar o épico X, o que monitorar?" | `/tia:metricas`, depois plano de monitoramento (abaixo) |
 | "roda o report diário/semanal" | `/tia:report diario` ou `/tia:report semanal` |
+| "relatório para a diretoria" (perfil GPM) | `/tia:report diretoria` (no GPM, o semanal é o de portfólio) |
 | "atualiza a Base", "confere a regra X no Confluence" | `/tia:base` ou `/tia:confluence` |
 | "o que você sabe sobre mim?" / "esquece X" | Memória (abaixo) |
 | "o que você faz?", "comandos" | `/tia:ajuda` |
