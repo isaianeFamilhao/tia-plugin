@@ -4,6 +4,7 @@
 # (tamanhos, max_retrabalho, cobertura.palavras_vagas, dados.*, confluence.c1_validade_horas), repita só a chave.
 # Regras inegociáveis (escopo de escrita, gates, escrita no Jira/Confluence/dados) não podem ser sobrepostas.
 modelo_versao: 1
+perfil: pm                            # pm (Product Manager) ou gpm (Group Product Manager)
 
 atlassian:
   site: "{site}"                      # ex.: https://empresa.atlassian.net

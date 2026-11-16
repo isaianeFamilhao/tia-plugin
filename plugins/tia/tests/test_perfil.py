@@ -176,3 +176,84 @@ def test_doctor_gpm_sem_fila_nao_avisa(proj, monkeypatch):
     assert por_nome(doctor.run_checks(proj))["demandas"]["nivel"] == "AVISO"   # PM sem fila: avisa, como antes
     com_perfil(proj, "gpm")
     assert "demandas" not in por_nome(doctor.run_checks(proj))
+
+
+# ------------------------------------------------------------------ item 5: configurar com perfil
+def _vazio(tmp_path, monkeypatch):
+    ws = tmp_path / "grupo"
+    ws.mkdir()
+    monkeypatch.setenv("TIA_ROOT", str(ws))
+    monkeypatch.setenv("TIA_HOME", str(tmp_path / "home-tia"))
+    monkeypatch.delenv("TIA_DEV", raising=False)
+    return ws
+
+
+def criar_gpm(ws, espacos=("PO|370737187|Políticas|somente_leitura", "PLAY|322895878|Playbooks|somente_leitura"),
+              jira=("IT", "CAD", "PAG"), nota="sim, cria"):
+    import configurar
+
+    return configurar.criar(ws, "Plataforma", "https://exemplo.atlassian.net", "abc-123", list(jira), list(espacos),
+                            nota, "gpm")
+
+
+def test_configurar_gpm_em_pasta_vazia(tmp_path, monkeypatch):
+    import configurar
+    import kb
+
+    ws = _vazio(tmp_path, monkeypatch)
+    feitos = criar_gpm(ws)                                     # nenhum espaço `manter`: vale no GPM
+    assert _common.is_workspace(ws) and _common.perfil(ws) == "gpm"
+    cfg = _common.load_config(ws)
+    assert cfg["atlassian"]["jira_projetos"] == ["IT", "CAD", "PAG"] and "jira_projeto" not in cfg["atlassian"]
+    assert all(e["politica"] == "somente_leitura" for e in cfg["confluence"]["espacos"].values())
+    assert cfg["escopo_escrita"]["caminhos"] == ["tia/**"] and _common.config_sobreposicoes_ignoradas(ws) == []
+    assert not (ws / "tia" / "demandas.yaml").exists() and not (ws / "tia" / "demandas").exists()
+    assert "tia/demandas.yaml" not in feitos
+    claude = (ws / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "perfil GPM" in claude and "IT, CAD, PAG" in claude and "**PO**" in claude and "{" not in claude
+    assert kb.validate_kb(ws)["ok"]
+    st = configurar.status(ws)
+    assert st["perfil"] == "gpm" and st["faltando"] == [] and st["desatualizados"] == []
+    monkeypatch.setattr(doctor, "venv_python", lambda data: None)
+    r = por_nome(doctor.run_checks(ws))
+    assert r["perfil"]["nivel"] == "OK" and "demandas" not in r and "estrutura" not in r
+
+
+def test_configurar_gpm_um_manter_no_maximo(tmp_path, monkeypatch):
+    ws = _vazio(tmp_path, monkeypatch)
+    with pytest.raises(SystemExit, match="só um espaço"):
+        criar_gpm(ws, espacos=("A|1|a|manter", "B|2|b|manter"))
+    assert not _common.is_workspace(ws) and not (ws / "tia").exists()     # nada criado pela metade
+    criar_gpm(ws, espacos=("GRP|9|Grupo|manter", "PO|370737187|Políticas|somente_leitura"))
+    assert _common.load_config(ws)["confluence"]["espacos"]["GRP"]["politica"] == "manter"
+
+
+def test_configurar_pm_continua_com_um_projeto(tmp_path, monkeypatch):
+    import configurar
+
+    ws = _vazio(tmp_path, monkeypatch)
+    with pytest.raises(SystemExit, match="exatamente um projeto"):
+        configurar.criar(ws, "T", "s", "c", ["A", "B"], ["X|1|x|manter"], "sim")
+    with pytest.raises(SystemExit):
+        configurar.criar(ws, "T", "s", "c", ["A"], [], "sim", "diretor")
+    configurar.criar(ws, "T", "s", "c", ["A"], ["X|1|x|manter"], "sim")
+    cfg = _common.load_config(ws)
+    assert cfg["perfil"] == "pm" and cfg["atlassian"]["jira_projeto"] == "A"
+    assert (ws / "tia" / "demandas.yaml").exists()
+    configurar.criar(ws, "T", "s", "c", ["A", "B"], [], "de novo", "gpm")  # já é PM: perfil não muda
+    assert _common.perfil(ws) == "pm"
+
+
+def test_configurar_cli_gpm_sem_pyyaml(tmp_path, monkeypatch):
+    import subprocess
+    import sys
+
+    from conftest import BIN
+
+    ws = _vazio(tmp_path, monkeypatch)
+    code = ("import sys; sys.modules['yaml'] = None; sys.path.insert(0, sys.argv[1]); import configurar; "
+            "sys.exit(configurar.main(['--root', sys.argv[2], 'criar', '--perfil', 'gpm', '--time', 'G', '--site', 's',"
+            " '--cloud-id', 'c', '--jira', 'A', '--jira', 'B', '--nota', 'sim']))")
+    r = subprocess.run([sys.executable, "-c", code, str(BIN), str(ws)], capture_output=True, text=True, encoding="utf-8")
+    assert r.returncode == 0, r.stderr
+    assert _common.load_config(ws)["atlassian"]["jira_projetos"] == ["A", "B"]

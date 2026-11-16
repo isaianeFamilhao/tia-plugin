@@ -5,6 +5,8 @@ Só biblioteca padrão: roda com o Python do sistema antes de o ambiente do plug
     tia.sh configurar criar --time "<nome>" --site <url> --cloud-id <id> --jira <CHAVE> \\
         --espaco "INT|282787868|Internal Tools|manter" [--espaco "PO|370737187|Políticas|somente_leitura" …] \\
         --nota "<resposta literal da PM>"
+    tia.sh configurar criar --perfil gpm --time "<grupo>" --site <url> --cloud-id <id> \\
+        --jira <CHAVE1> --jira <CHAVE2> … [--espaco …] --nota "<resposta literal>"   # GPM: vários projetos, sem fila
     tia.sh configurar atualizar                       # lista modelos desatualizados, com diff
     tia.sh configurar atualizar --aplicar <arquivo> --nota "<resposta literal da PM>"
 
@@ -51,6 +53,34 @@ MODELOS_COPIADOS = {
     "tia/memoria/pessoal/pessoal.md": "pessoal.md",
 }
 SEM_VERSAO = {"tia/demandas.yaml", "tia/kb/apontamentos.md", "tia/kb/prefixos.md"}  # viram conteúdo do time
+# Perfil da pasta (ver PERFIS em _common.py; aqui só biblioteca padrão). GPM não tem fila de demandas.
+PERFIS = ("pm", "gpm")
+SO_PM = {"tia/demandas", "tia/demandas.yaml", "tia/demandas.exemplo.yaml"}
+PERFIL_RE = re.compile(r"(?m)^perfil:\s*['\"]?\s*([A-Za-z]+)")
+
+
+def pastas(perfil: str = "pm") -> list[str]:
+    return [p for p in PASTAS if perfil == "pm" or p not in SO_PM]
+
+
+def modelos_copiados(perfil: str = "pm") -> dict[str, str]:
+    if perfil == "pm":
+        return dict(MODELOS_COPIADOS)
+    out = {d: m for d, m in MODELOS_COPIADOS.items() if d not in SO_PM}
+    out[".tia/config.yaml"] = "config.time.gpm.yaml"
+    return out
+
+
+def claude_modelo(perfil: str = "pm") -> str:
+    return "CLAUDE.md" if perfil == "pm" else "CLAUDE.gpm.md"
+
+
+def perfil_de(root: Path) -> str:
+    """Perfil do config do time (sem PyYAML); sem config ou sem a chave = `pm`; valor inválido também (o doctor acusa)."""
+    f = root / ".tia" / "config.yaml"
+    m = PERFIL_RE.search(f.read_text(encoding="utf-8")) if f.exists() else None
+    v = m.group(1).lower() if m else "pm"
+    return v if v in PERFIS else "pm"
 
 
 def versao(texto: str) -> int | None:
@@ -80,38 +110,57 @@ def _q(s: str) -> str:
     return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def render_config(time_: str, site: str, cloud_id: str, jira: str, espacos: list[tuple[str, dict]]) -> str:
+def _jira_lista(jira) -> list[str]:
+    return [j for j in ([jira] if isinstance(jira, str) else list(jira or [])) if str(j).strip()]
+
+
+def render_config(time_: str, site: str, cloud_id: str, jira, espacos: list[tuple[str, dict]],
+                  perfil: str = "pm") -> str:
+    """`jira`: a chave do projeto (PM, exatamente um) ou a lista de projetos dos times (GPM, zero ou mais)."""
+    if perfil not in PERFIS:
+        raise SystemExit(f"--perfil inválido: {perfil!r}. Use {' ou '.join(PERFIS)}")
     mantidos = [k for k, v in espacos if v["politica"] == "manter"]
     if len(mantidos) > 1:
         raise SystemExit(f"só um espaço pode ser `manter` (veio: {', '.join(mantidos)})")
+    projetos = _jira_lista(jira)
+    if perfil == "pm" and len(projetos) != 1:
+        raise SystemExit("perfil PM: informe exatamente um projeto do Jira (--jira CHAVE)")
     bloco = "\n".join(f"    {k}: {{id: {_q(v['id'])}, nome: {_q(v['nome'])}, politica: {v['politica']}}}"
                       for k, v in espacos) or "    {}"
-    t = (MODELOS / "config.time.yaml").read_text(encoding="utf-8")
-    t = t.replace("{site}", site).replace("{cloud_id}", cloud_id).replace("{jira_projeto}", jira)
+    t = (MODELOS / modelos_copiados(perfil)[".tia/config.yaml"]).read_text(encoding="utf-8")
+    t = t.replace("{site}", site).replace("{cloud_id}", cloud_id)
+    if perfil == "pm":
+        t = t.replace("{jira_projeto}", projetos[0])
+    else:
+        t = t.replace("{jira_lista}", "[" + ", ".join(_q(j) for j in projetos) + "]")
     t = t.replace("{espacos_lista}", "[" + ", ".join(k for k, _ in espacos) + "]")
     t = t.replace("{espacos_bloco}", bloco)
     return t.replace("# Configuração DO TIME (workspace).", f"# Configuração DO TIME ({time_}).", 1)
 
 
-def render_claude_md(time_: str, site: str, jira: str, espacos: list[tuple[str, dict]]) -> str:
+def render_claude_md(time_: str, site: str, jira, espacos: list[tuple[str, dict]], perfil: str = "pm") -> str:
     linhas = []
     for k, v in espacos:
         if v["politica"] == "manter":
             linhas.append(f"| **{k}** · {v['nome']} (nosso espaço) | livre | só com **C1** por página | o que precisa ser documentado |")
         else:
             linhas.append(f"| **{k}** · {v['nome']} | quando necessário | **nunca** (nem comentário) | quando algo gerar dúvida |")
-    t = (MODELOS / "CLAUDE.md").read_text(encoding="utf-8")
-    return (t.replace("{time}", time_).replace("{jira_projeto}", jira).replace("{site}", site)
-            .replace("{tabela_espacos}", "\n".join(linhas)))
+    projetos = ", ".join(_jira_lista(jira)) or "[a definir]"
+    t = (MODELOS / claude_modelo(perfil)).read_text(encoding="utf-8")
+    return (t.replace("{time}", time_).replace("{jira_projeto}", projetos).replace("{jira_projetos}", projetos)
+            .replace("{site}", site).replace("{tabela_espacos}", "\n".join(linhas)))
 
 
-def status(root: Path) -> dict:
-    out = {"workspace": is_workspace(root), "faltando": [], "desatualizados": [], "claude_md": claude_md_destino(root)}
-    for p in PASTAS:
+def status(root: Path, perfil: str | None = None) -> dict:
+    """Perfil: o do config do time, se já existe; senão o informado (padrão `pm`)."""
+    perfil = perfil_de(root) if is_workspace(root) else (perfil or "pm")
+    out = {"workspace": is_workspace(root), "perfil": perfil, "faltando": [], "desatualizados": [],
+           "claude_md": claude_md_destino(root)}
+    for p in pastas(perfil):
         if not (root / p).is_dir():
             out["faltando"].append(p + "/")
-    alvos = dict(MODELOS_COPIADOS)
-    alvos[out["claude_md"]] = "CLAUDE.md"
+    alvos = modelos_copiados(perfil)
+    alvos[out["claude_md"]] = claude_modelo(perfil)
     for dest, modelo in alvos.items():
         f = root / dest
         if not f.exists():
@@ -128,10 +177,16 @@ def status(root: Path) -> dict:
     return out
 
 
-def criar(root: Path, time_: str, site: str, cloud_id: str, jira: str, espacos: list[str], nota: str) -> list[str]:
+def criar(root: Path, time_: str, site: str, cloud_id: str, jira, espacos: list[str], nota: str,
+          perfil: str = "pm") -> list[str]:
     if not (nota or "").strip():
-        raise SystemExit("informe --nota com a resposta literal da PM aprovando a configuração")
+        raise SystemExit("informe --nota com a resposta literal da humana aprovando a configuração")
+    if is_workspace(root):
+        perfil = perfil_de(root)          # só cria o que falta: o perfil já escolhido não muda
     esp = [parse_espaco(s) for s in espacos]
+    # Valida antes de criar qualquer coisa. Config que já existe não é reescrito (nem conferido de novo).
+    config = None if is_workspace(root) else render_config(time_, site, cloud_id, jira, esp, perfil)
+    copiados = modelos_copiados(perfil)
     feitos: list[str] = []
 
     def escreve(rel: str, texto: str) -> None:
@@ -141,16 +196,17 @@ def criar(root: Path, time_: str, site: str, cloud_id: str, jira: str, espacos: 
         atomic_write_text(f, texto)
         feitos.append(rel)
 
-    for p in PASTAS:
+    for p in pastas(perfil):
         if not (root / p).is_dir():
             (root / p).mkdir(parents=True, exist_ok=True)
             feitos.append(p + "/")
-    escreve(".tia/config.yaml", render_config(time_, site, cloud_id, jira, esp))
-    for dest, modelo in MODELOS_COPIADOS.items():
+    if config is not None:
+        escreve(".tia/config.yaml", config)
+    for dest, modelo in copiados.items():
         if dest != ".tia/config.yaml":
             escreve(dest, (MODELOS / modelo).read_text(encoding="utf-8"))
     destino = claude_md_destino(root)
-    escreve(destino, render_claude_md(time_, site, jira, esp))
+    escreve(destino, render_claude_md(time_, site, jira, esp, perfil))
     if destino == "tia/CLAUDE.md":
         raiz = root / "CLAUDE.md"
         txt = raiz.read_text(encoding="utf-8") if raiz.exists() else ""
@@ -165,13 +221,14 @@ def criar(root: Path, time_: str, site: str, cloud_id: str, jira: str, espacos: 
     log = root / REL["logs"] / "configurar.jsonl"
     log.parent.mkdir(parents=True, exist_ok=True)
     with open(log, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps({"em": now_iso(), "acao": "criar", "nota": nota.strip(), "criados": feitos},
-                            ensure_ascii=False) + "\n")
+        fh.write(json.dumps({"em": now_iso(), "acao": "criar", "perfil": perfil, "nota": nota.strip(),
+                             "criados": feitos}, ensure_ascii=False) + "\n")
     return feitos
 
 
 def diff(root: Path, dest: str) -> str:
-    modelo = "CLAUDE.md" if dest.endswith("CLAUDE.md") else MODELOS_COPIADOS.get(dest)
+    perfil = perfil_de(root)
+    modelo = claude_modelo(perfil) if dest.endswith("CLAUDE.md") else modelos_copiados(perfil).get(dest)
     if not modelo:
         raise SystemExit(f"{dest} não é um modelo copiado pela Tia")
     atual = (root / dest).read_text(encoding="utf-8").splitlines(keepends=True)
@@ -190,7 +247,7 @@ def aplicar(root: Path, dest: str, nota: str) -> Path:
     bak = root / REL["cache"] / "backup" / f"{dest.replace('/', '__')}.{now_iso()[:10]}"
     bak.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(root / dest, bak)
-    atomic_write_text(root / dest, (MODELOS / MODELOS_COPIADOS[dest]).read_text(encoding="utf-8"))
+    atomic_write_text(root / dest, (MODELOS / modelos_copiados(perfil_de(root))[dest]).read_text(encoding="utf-8"))
     return bak
 
 
@@ -204,7 +261,9 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--time", required=True)
     c.add_argument("--site", required=True)
     c.add_argument("--cloud-id", required=True)
-    c.add_argument("--jira", required=True)
+    c.add_argument("--perfil", choices=PERFIS, default="pm")
+    c.add_argument("--jira", action="append", default=[],
+                   help="projeto do Jira: um no perfil PM; no GPM, repita para cada time (ou omita e pergunte depois)")
     c.add_argument("--espaco", action="append", default=[])
     c.add_argument("--nota", required=True)
     u = sub.add_parser("atualizar")
@@ -220,14 +279,15 @@ def main(argv: list[str] | None = None) -> int:
         if a.json:
             print(json.dumps(st, ensure_ascii=False, indent=2))
         else:
-            print(("Workspace da Tia" if st["workspace"] else "Ainda não é workspace da Tia") + f": {root}")
+            print(("Workspace da Tia" if st["workspace"] else "Ainda não é workspace da Tia") + f": {root}"
+                  + (f" (perfil {st['perfil'].upper()})" if st["workspace"] else ""))
             for f in st["faltando"]:
                 print(f"  falta: {f}")
             for d in st["desatualizados"]:
                 print(f"  desatualizado: {d['arquivo']} (v{d['versao']} → v{d['versao_plugin']})")
         return 0
     if a.cmd == "criar":
-        feitos = criar(root, a.time, a.site, a.cloud_id, a.jira, a.espaco, a.nota)
+        feitos = criar(root, a.time, a.site, a.cloud_id, a.jira, a.espaco, a.nota, a.perfil)
         print(f"Criados ({len(feitos)}): " + (", ".join(feitos) if feitos else "nada; tudo já existia"))
         return 0
     if a.cmd == "atualizar":
