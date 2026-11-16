@@ -6,7 +6,8 @@
 #   2. DEFAULT com ajuste por sobreposição (deep merge; lista substitui lista): tamanhos, max_retrabalho,
 #      palavras_vagas, dados (mcp_regex, clis, acao_regex), confluence.c1_validade_horas, pacote, digest, metricas.
 #   3. DO TIME (copiado no "Tia, configurar" a partir de modelos/config.time.yaml; depois só a humana edita):
-#      perfil, atlassian (site, cloud_id, jira_projeto, espaços), confluence.espacos, modelos.
+#      perfil, atlassian (site, cloud_id, jira_projeto ou jira_projetos, espaços), confluence.espacos, modelos,
+#      portfolio.times (só GPM; validado por `portfolio.py validar`).
 version: 1
 
 # Perfil da pasta (do time): `pm` (Product Manager) ou `gpm` (Group Product Manager). Mesmo motor e mesmos

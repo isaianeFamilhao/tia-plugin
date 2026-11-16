@@ -19,6 +19,12 @@ confluence:
   espacos:
 {espacos_bloco}
 
+# Times do grupo: proposto pela Tia a partir do Jira (ou perguntado) e aprovado pela humana.
+# Cada time: nome, jira_projeto (chave do projeto) e, se quiser, board (id do quadro). Sem pessoas aqui.
+portfolio:
+  times:
+{times_bloco}
+
 modelos:
   permitidos: [opus, sonnet, haiku]
   esforco: medium

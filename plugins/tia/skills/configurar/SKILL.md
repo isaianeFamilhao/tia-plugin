@@ -17,20 +17,22 @@ projeto. Tom da Tia: objetiva, sem emojis. Nada é criado sem o sim da PM, e nad
    duas pastas.
 3. **Proposta a partir do conector Atlassian (só leitura):**
    - `getAccessibleAtlassianResources` → site e `cloud_id` (mais de um site: pergunte qual).
-   - `getVisibleJiraProjects` → PM: proponha **o** projeto do time. GPM: proponha **os** projetos dos times do
-     grupo (vários). Na dúvida, pergunte.
+   - `getVisibleJiraProjects` → PM: proponha **o** projeto do time. GPM: proponha **os times do grupo**, cada um
+     com nome e projeto do Jira (um projeto por time; board opcional). Na dúvida, pergunte. Sem nomes de pessoas.
    - `getConfluenceSpaces` → proponha os espaços que a Tia vai consultar, com o `id` de cada um. **No máximo
      um** pode ser `manter` (o espaço que o time ou o grupo mantém, alterado só com C1); no GPM pode não haver
      nenhum. Todos os outros são `somente_leitura`.
    - Sem conector: peça site, projeto(s) e espaços em uma pergunta e marque o que faltar como `[a definir]`.
-4. Mostre a proposta numa tabela (perfil, time ou grupo, site, cloud_id, projeto(s) Jira, espaços com política)
+4. Mostre a proposta numa tabela (perfil, time ou grupo, site, cloud_id, projeto Jira ou times do grupo com
+   projeto, espaços com política)
    e a lista do que será criado: `.tia/config.yaml`, `tia/` (PM: fila e exemplo; ambos: Base de Conhecimento com
    contrato, padrões de épico e história, apontamentos, prefixos, Memória do time e pessoal com `pessoal.md`),
    `CLAUDE.md` do time ou do grupo (ou `tia/CLAUDE.md` + linha `@tia/CLAUDE.md`, se o projeto já tiver um) e o
    bloco no `.gitignore`. Pergunte **"Crio a configuração da Tia neste projeto?"**.
 5. Só com o sim:
    - PM: `TIA configurar criar --time "<nome>" --site <url> --cloud-id <id> --jira <CHAVE> --espaco "CHAVE|id|Nome|manter" --espaco "CHAVE|id|Nome|somente_leitura" … --nota "<resposta literal>"`
-   - GPM: `TIA configurar criar --perfil gpm --time "<grupo>" --site <url> --cloud-id <id> --jira <CHAVE1> --jira <CHAVE2> … --espaco "CHAVE|id|Nome|somente_leitura" … --nota "<resposta literal>"`
+   - GPM: `TIA configurar criar --perfil gpm --time "<grupo>" --site <url> --cloud-id <id> --portfolio "Nome do time|CHAVE" --portfolio "Outro time|CHAVE2|<board>" … --espaco "CHAVE|id|Nome|somente_leitura" … --nota "<resposta literal>"`
+     (os projetos do Jira vêm dos times; `TIA portfolio validar` confere depois).
 6. **Ambiente Python:** `TIA bootstrap` (cria o ambiente do plugin; leva até alguns minutos na primeira vez).
    Falhou → `TIA doctor` e explique a correção em linguagem simples (Python 3.12, Git for Windows, proxy).
 7. **Fechamento:** `TIA doctor`. Diga em até 5 linhas o que foi criado e os próximos passos.

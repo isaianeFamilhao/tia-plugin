@@ -6,7 +6,8 @@ Só biblioteca padrão: roda com o Python do sistema antes de o ambiente do plug
         --espaco "INT|282787868|Internal Tools|manter" [--espaco "PO|370737187|Políticas|somente_leitura" …] \\
         --nota "<resposta literal da PM>"
     tia.sh configurar criar --perfil gpm --time "<grupo>" --site <url> --cloud-id <id> \\
-        --jira <CHAVE1> --jira <CHAVE2> … [--espaco …] --nota "<resposta literal>"   # GPM: vários projetos, sem fila
+        --portfolio "Cadastro|CAD" --portfolio "Pagamentos|PAG|42" … [--espaco …] --nota "<resposta literal>"
+        # GPM: times do grupo (nome|projeto|board opcional), sem fila; --jira opcional (padrão: projetos dos times)
     tia.sh configurar atualizar                       # lista modelos desatualizados, com diff
     tia.sh configurar atualizar --aplicar <arquivo> --nota "<resposta literal da PM>"
 
@@ -106,6 +107,20 @@ def parse_espaco(s: str) -> tuple[str, dict]:
     return chave, {"id": sid, "nome": nome, "politica": pol}
 
 
+JIRA_CHAVE_RE = re.compile(r"^[A-Z][A-Z0-9]+$")
+
+
+def parse_time(s: str) -> dict:
+    """Time do portfólio do GPM: "Nome|CHAVE" ou "Nome|CHAVE|board"."""
+    partes = [p.strip() for p in s.split("|")]
+    if len(partes) not in (2, 3) or not partes[0] or not JIRA_CHAVE_RE.match(partes[1]):
+        raise SystemExit(f"--portfolio inválido: {s!r}. Formato: \"Nome do time|CHAVE_DO_JIRA\" ou \"Nome|CHAVE|board\"")
+    t = {"nome": partes[0], "jira_projeto": partes[1]}
+    if len(partes) == 3 and partes[2]:
+        t["board"] = partes[2]
+    return t
+
+
 def _q(s: str) -> str:
     return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -115,14 +130,25 @@ def _jira_lista(jira) -> list[str]:
 
 
 def render_config(time_: str, site: str, cloud_id: str, jira, espacos: list[tuple[str, dict]],
-                  perfil: str = "pm") -> str:
-    """`jira`: a chave do projeto (PM, exatamente um) ou a lista de projetos dos times (GPM, zero ou mais)."""
+                  perfil: str = "pm", times: list[dict] | None = None) -> str:
+    """`jira`: a chave do projeto (PM, exatamente um) ou a lista de projetos dos times (GPM, zero ou mais).
+    `times` (só GPM): times do portfólio; sem `jira`, os projetos vêm dos times."""
     if perfil not in PERFIS:
         raise SystemExit(f"--perfil inválido: {perfil!r}. Use {' ou '.join(PERFIS)}")
     mantidos = [k for k, v in espacos if v["politica"] == "manter"]
     if len(mantidos) > 1:
         raise SystemExit(f"só um espaço pode ser `manter` (veio: {', '.join(mantidos)})")
     projetos = _jira_lista(jira)
+    times = list(times or [])
+    if times and perfil != "gpm":
+        raise SystemExit("--portfolio é só do perfil GPM")
+    vistos: set[str] = set()
+    for tm in times:
+        if tm["jira_projeto"] in vistos:
+            raise SystemExit(f"projeto {tm['jira_projeto']} repetido no portfólio: um time por projeto")
+        vistos.add(tm["jira_projeto"])
+    if perfil == "gpm" and not projetos:
+        projetos = [tm["jira_projeto"] for tm in times]
     if perfil == "pm" and len(projetos) != 1:
         raise SystemExit("perfil PM: informe exatamente um projeto do Jira (--jira CHAVE)")
     bloco = "\n".join(f"    {k}: {{id: {_q(v['id'])}, nome: {_q(v['nome'])}, politica: {v['politica']}}}"
@@ -135,6 +161,9 @@ def render_config(time_: str, site: str, cloud_id: str, jira, espacos: list[tupl
         t = t.replace("{jira_lista}", "[" + ", ".join(_q(j) for j in projetos) + "]")
     t = t.replace("{espacos_lista}", "[" + ", ".join(k for k, _ in espacos) + "]")
     t = t.replace("{espacos_bloco}", bloco)
+    if perfil == "gpm":
+        tb = "\n".join("    - {" + ", ".join(f"{k}: {_q(v)}" for k, v in tm.items()) + "}" for tm in times)
+        t = t.replace("{times_bloco}", tb or "    []")
     return t.replace("# Configuração DO TIME (workspace).", f"# Configuração DO TIME ({time_}).", 1)
 
 
@@ -178,14 +207,17 @@ def status(root: Path, perfil: str | None = None) -> dict:
 
 
 def criar(root: Path, time_: str, site: str, cloud_id: str, jira, espacos: list[str], nota: str,
-          perfil: str = "pm") -> list[str]:
+          perfil: str = "pm", portfolio: list[str] | None = None) -> list[str]:
     if not (nota or "").strip():
         raise SystemExit("informe --nota com a resposta literal da humana aprovando a configuração")
     if is_workspace(root):
         perfil = perfil_de(root)          # só cria o que falta: o perfil já escolhido não muda
     esp = [parse_espaco(s) for s in espacos]
     # Valida antes de criar qualquer coisa. Config que já existe não é reescrito (nem conferido de novo).
-    config = None if is_workspace(root) else render_config(time_, site, cloud_id, jira, esp, perfil)
+    times = [parse_time(s) for s in portfolio or []]
+    config = None if is_workspace(root) else render_config(time_, site, cloud_id, jira, esp, perfil, times)
+    if perfil == "gpm" and not _jira_lista(jira):
+        jira = [tm["jira_projeto"] for tm in times]
     copiados = modelos_copiados(perfil)
     feitos: list[str] = []
 
@@ -265,6 +297,8 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--jira", action="append", default=[],
                    help="projeto do Jira: um no perfil PM; no GPM, repita para cada time (ou omita e pergunte depois)")
     c.add_argument("--espaco", action="append", default=[])
+    c.add_argument("--portfolio", action="append", default=[], metavar="NOME|CHAVE[|board]",
+                   help="só GPM: um por time do grupo")
     c.add_argument("--nota", required=True)
     u = sub.add_parser("atualizar")
     u.add_argument("--aplicar", metavar="ARQUIVO")
@@ -287,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  desatualizado: {d['arquivo']} (v{d['versao']} → v{d['versao_plugin']})")
         return 0
     if a.cmd == "criar":
-        feitos = criar(root, a.time, a.site, a.cloud_id, a.jira, a.espaco, a.nota, a.perfil)
+        feitos = criar(root, a.time, a.site, a.cloud_id, a.jira, a.espaco, a.nota, a.perfil, a.portfolio)
         print(f"Criados ({len(feitos)}): " + (", ".join(feitos) if feitos else "nada; tudo já existia"))
         return 0
     if a.cmd == "atualizar":

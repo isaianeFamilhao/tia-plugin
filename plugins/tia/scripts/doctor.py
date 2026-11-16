@@ -190,6 +190,19 @@ def _conteudo(out: list[dict], root: Path) -> None:
         out.append(check("AVISO", "kb", "Base de Conhecimento sem regras: rode /tia:base antes da primeira demanda"))
     else:
         out.append(check("OK", "kb", f"Base de Conhecimento: {rep['regras']} regras, {rep['fontes']} fontes"))
+    if perfil_bruto(cfg) == "gpm":
+        import portfolio
+
+        pr = portfolio.validar_times(cfg)
+        if pr["erros"]:
+            out.append(check("FALHA", "portfolio", f"times do portfólio com {len(pr['erros'])} erro(s): {pr['erros'][0]}",
+                             f"corrija portfolio.times em .tia/config.yaml ({LANCADOR} portfolio validar)"))
+        elif not pr["times"]:
+            out.append(check("AVISO", "portfolio", "nenhum time no portfólio ainda",
+                             "diga \"Tia, configurar\" para a Tia propor os times a partir do Jira, ou edite portfolio.times"))
+        else:
+            out.append(check("OK", "portfolio", f"portfólio: {pr['times']} time(s)"
+                             + (f", {len(pr['avisos'])} aviso(s)" if pr["avisos"] else "")))
     dpath = P(root, "fila")
     if perfil_bruto(cfg) == "gpm" and not dpath.exists():
         pass                                                      # perfil GPM não tem fila de demandas
