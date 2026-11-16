@@ -101,7 +101,8 @@ Variações:
 
 ## Primeiro uso num projeto
 
-1. No Claude Code, na pasta do projeto, digite `/tia:configurar` (ou "Tia, configurar").
+1. No Claude Code, na pasta do projeto, digite `/tia:configurar` (ou "Tia, configurar"). A Tia pergunta o perfil
+   da pasta: PM (os passos abaixo) ou GPM (veja [Perfis PM e GPM](#perfis-pm-e-gpm)).
 2. A Tia lê o conector Atlassian e propõe numa tabela: site, `cloud_id`, projeto do Jira e espaços do Confluence.
    **Só um** espaço pode ser `manter` (o do time, alterado só com o gate C1). Os outros ficam somente leitura.
 3. Com o seu sim, ela cria só o que falta, sem sobrescrever nada:
@@ -161,17 +162,19 @@ fila, monitoramento, Memória e demanda em andamento. `--json` devolve o mesmo e
 
 ### Skills
 
-| Comando | Quando usar | O que entrega |
-|---|---|---|
-| `/tia:abrir` · "Tia, bom dia" | Início do dia, retomar, ver a fila ou pendências. | Briefing curto: alertas de métricas, gates que esperam você, fila, apontamentos e fontes de dados conectadas. Conduz os gates e encaminha pedidos "Tia, …". |
-| `/tia:demanda D-NNN` | Depois de aprovar uma demanda (G1) e começar a execução. | Pesquisa com fonte, épico no padrão do time, histórias com critérios Dado/Quando/Então, matriz de cobertura, revisão independente e `result.json` para o G2. |
-| `/tia:base [escopo]` | A Base de Conhecimento está desatualizada ou precisa crescer. | Diferenças entre a Base e o Confluence/Jira (regra nova, mudou, revogada, conflito, lacuna) e o lote para o K1. |
-| `/tia:confluence [consultar\|documentar\|revisar\|apontamentos]` | Consultar páginas, apontar dúvidas ou documentar no espaço do time. | Resposta com título, espaço e link; apontamentos em `tia/kb/apontamentos.md`; rascunho e diff para o C1. |
-| `/tia:metricas` | Definir como medir uma feature, épico, OKR ou iniciativa. | Árvore output → outcome, 1 métrica principal com hipótese, 1–2 guardrails, status dos dados (mensurável hoje, sem acesso, ponto cego), fórmula, janela e tracking spec. |
-| `/tia:okr` | Fechar, revisar ou desdobrar OKRs. | Objetivos qualitativos, 2–4 KRs "de X para Y", guardrail, checagem de dados e iniciativas separadas. |
-| `/tia:report diario\|semanal` | Pulso do dia ou visão semanal de OKR. | Relatório em `tia/relatorios/` cruzando entrega e dados, com até 3 recomendações. |
-| `/tia:configurar [atualizar]` | Preparar o projeto ou comparar modelos depois de atualizar o plugin. | Estrutura do workspace criada, ou o diff dos modelos com decisão arquivo a arquivo. |
-| `/tia:ajuda` | Ver todos os comandos. | Lista de skills, atalhos, gates e scripts, e o próximo passo útil. |
+| Comando | Perfil | Quando usar | O que entrega |
+|---|---|---|---|
+| `/tia:abrir` · "Tia, bom dia" | PM e GPM | Início do dia, retomar, ver a fila ou pendências. | Briefing curto. PM: alertas de métricas, gates que esperam você, fila, apontamentos e fontes de dados conectadas. GPM: alertas, times com travas e OKRs do grupo em risco. Conduz os gates e encaminha pedidos "Tia, …". |
+| `/tia:demanda D-NNN` | PM | Depois de aprovar uma demanda (G1) e começar a execução. | Pesquisa com fonte, épico no padrão do time, histórias com critérios Dado/Quando/Então, matriz de cobertura, revisão independente e `result.json` para o G2. |
+| `/tia:portfolio [janela] [time]` | GPM | Ver como estão os times do grupo. | Por time, no Jira e sem pessoas: em andamento por etapa, travados e entregas da janela, com causa provável e próximo passo, em `tia/relatorios/<data>-portfolio.md`. |
+| `/tia:base [escopo]` | PM e GPM | A Base de Conhecimento está desatualizada ou precisa crescer. | Diferenças entre a Base e o Confluence/Jira (regra nova, mudou, revogada, conflito, lacuna) e o lote para o K1. |
+| `/tia:confluence [consultar\|documentar\|revisar\|apontamentos]` | PM e GPM | Consultar páginas, apontar dúvidas ou documentar no espaço do time. | Resposta com título, espaço e link; apontamentos em `tia/kb/apontamentos.md`; rascunho e diff para o C1. |
+| `/tia:metricas` | PM e GPM | Definir como medir uma feature, épico, OKR ou iniciativa. | Árvore output → outcome, 1 métrica principal com hipótese, 1–2 guardrails, status dos dados (mensurável hoje, sem acesso, ponto cego), fórmula, janela e tracking spec. |
+| `/tia:okr` | PM e GPM | Fechar, revisar ou desdobrar OKRs. No GPM, os OKRs do grupo. | Objetivos qualitativos, 2–4 KRs "de X para Y", guardrail, checagem de dados e iniciativas separadas. |
+| `/tia:report diario\|semanal` | PM e GPM | Pulso do dia ou visão semanal. | Relatório em `tia/relatorios/` cruzando entrega e dados, com até 3 recomendações. No GPM, o semanal é o de portfólio (tabela por time, OKRs do grupo). |
+| `/tia:report diretoria` | GPM | Levar a situação do grupo à diretoria. | Formato executivo curto (situação, riscos, decisões pedidas) em `tia/relatorios/<data>-diretoria.md`. Não envia nem publica sem pedido. |
+| `/tia:configurar [atualizar]` | PM e GPM | Preparar o projeto ou comparar modelos depois de atualizar o plugin. | Estrutura do workspace criada, ou o diff dos modelos com decisão arquivo a arquivo. |
+| `/tia:ajuda` | PM e GPM | Ver todos os comandos. | Lista de skills, atalhos, gates e scripts do perfil da pasta, e o próximo passo útil. |
 
 **Chamado "Tia, …".** No início da mensagem, "Tia, <frase>" chama a skill certa. Exemplos: "Tia, roda o semanal"
 → `/tia:report semanal`; "Tia, atualiza a configuração" → `/tia:configurar atualizar`. Só vale no começo da
@@ -195,8 +198,50 @@ Gate é uma decisão que só a humana toma, com resposta explícita no turno. A 
 Ciclo da demanda: `draft → valid → (G1) approved → running → delivered | blocked → (G2) accepted | rework |
 rejected → (G3, opcional) publish_approved → published`.
 
-<!-- Ponto de extensão: a fase 1 da 0.3.0 (perfis) acrescenta aqui a seção de perfis e o que muda em
-skills e gates por perfil. Atualize também a seção "Para agentes e LLMs" se um perfil mudar caminhos ou invariantes. -->
+### Perfis PM e GPM
+
+A Tia tem dois perfis com o mesmo motor, os mesmos princípios e as mesmas regras. Muda o que cada um faz.
+
+| Perfil | Para quem | O centro do trabalho |
+|---|---|---|
+| **PM** | Product Manager de um time | Fila de demandas, épicos e histórias, Base de Conhecimento, métricas e OKRs do time. |
+| **GPM** | Quem lidera um grupo de times | Portfólio dos times, OKRs do grupo e relatórios (semanal de portfólio e diretoria). |
+
+**O perfil é da pasta.** Fica em `perfil: pm|gpm` no `.tia/config.yaml`; sem a chave, vale `pm` (pastas da 0.2.0
+seguem iguais). O `/tia:configurar` pergunta o perfil ao criar a pasta. Quem tem os dois papéis usa duas pastas.
+Perfil com valor inválido é `FALHA` no `doctor`.
+
+**Habilidades por perfil.** `/tia:demanda` e a fila (`tia/demandas.yaml` e os gates G1, G2 e G3) só existem no
+PM; `/tia:portfolio` e `/tia:report diretoria` só no GPM; o resto vale nos dois. A `/tia:ajuda` e os atalhos
+"Tia, …" mostram só as do perfil da pasta. Pedido de habilidade do outro perfil recebe uma linha dizendo de qual
+perfil ela é (ex.: "escreve um épico" numa pasta GPM: isso fica na pasta da PM do time).
+
+**Configurar no GPM.** A Tia propõe pelo conector Atlassian (ou pergunta) os **times do portfólio**
+(`portfolio.times: [{nome, jira_projeto, board?}]`), os projetos do Jira e os espaços do Confluence; nada vem
+fixado (D-PM-32). Zero ou um espaço `manter`. Não há fila: a pasta não tem `tia/demandas.yaml` nem
+`tia/demandas/`. O `CLAUDE.md` vem de um modelo próprio do GPM. O `doctor` acusa time sem projeto e projeto
+repetido.
+
+**Portfólio (`/tia:portfolio`).** Consultas JQL só leitura por time; o script agrega por time os itens em
+andamento por etapa, os travados (sinalizados, bloqueados ou sem movimento há 5 dias) e os concluídos na janela
+(7 dias por padrão). Responsável e qualquer campo de pessoa saem antes de gravar: o portfólio é por time, nunca
+por pessoa. Relatório em `tia/relatorios/<data>-portfolio.md`, com a fonte e a data da consulta. Nesta versão a
+fonte é só o Jira; o app de WIP entra como fonte de dados quando existir (D-PM-30).
+
+**Abertura do dia no GPM.** No lugar da fila: alertas de métricas, times com travas (time, o que trava, próximo
+passo) e OKRs do grupo em risco, nessa ordem. Depois, o que espera decisão (K1, M1, Memória).
+
+**OKRs do grupo.** No GPM, `/tia:okr` cria e revisa OKRs com `nivel: grupo` e `id` por objetivo (`OBJ-NN`). Na
+pasta de um time, o `alinhamento` do OKR pode citar esse id; `okr validar --grupo <arquivo do grupo>` reprova id
+que não existe (texto livre segue valendo, com aviso). A consolidação dos OKRs dos times ainda não existe.
+
+**Relatórios do GPM.** `/tia:report semanal` é o semanal de portfólio: tabela por time (WIP, travas, entregas,
+situação), OKRs do grupo e até 3 recomendações com evidência e trade-off. `/tia:report diretoria` é o executivo
+curto: situação, riscos e decisões pedidas. Nenhum dos dois é enviado ou publicado sem pedido; publicar é um
+documento ou uma página no espaço `manter`, com C1.
+
+**Sem integração entre Tias.** A Tia do GPM não lê a pasta de nenhuma PM; vê o portfólio pelo Jira, pelo
+Confluence e pelas fontes de dados (D-PM-29). Demanda que ainda não está no Jira não aparece para o GPM.
 
 ## Como funciona
 
@@ -307,7 +352,9 @@ Mensagens de commit (`-m`, `-F`, heredoc) e texto entre aspas não contam como c
 
 ### Como descobrir o estado
 
-- Fila e gates: `TIA ledger status --json`. Campos úteis: `ativa` (demanda em andamento), `prontas_para_g1`,
+- Perfil: `perfil` em `.tia/config.yaml` (sem a chave, `pm`); o início da sessão também informa. No GPM não há
+  fila: o estado é o último retrato do portfólio (`TIA portfolio ultimo --json`) e os OKRs (`TIA okr listar`).
+- Fila e gates (PM): `TIA ledger status --json`. Campos úteis: `ativa` (demanda em andamento), `prontas_para_g1`,
   `aprovadas`, `aguardando_g2`, `retrabalho` e `demandas` (uma linha por demanda, com `estado`).
 - Uma demanda: `TIA ledger show D-NNN`.
 - Saúde do ambiente: `TIA doctor --json`. `FALHA` = pare e explique a correção.
@@ -322,7 +369,8 @@ Todos via `TIA <script> ...`. Os que registram gate exigem a resposta literal da
 | `doctor [--json]` | Abertura e sempre que algo falhar. |
 | `bootstrap` | Ambiente Python ausente. |
 | `configurar status [--json]` | Antes de configurar: o que falta. |
-| `configurar criar --time … --site … --cloud-id … --jira … --espaco "CHAVE\|id\|Nome\|politica" --nota …` | Depois do sim no configurar. |
+| `configurar criar --time … --site … --cloud-id … --jira … --espaco "CHAVE\|id\|Nome\|politica" --nota …` | Depois do sim no configurar (PM). |
+| `configurar criar --perfil gpm --time … --site … --cloud-id … --portfolio "Nome\|CHAVE[\|board]" … [--espaco …] --nota …` | Depois do sim no configurar (GPM). |
 | `configurar atualizar [--aplicar ARQUIVO --nota …]` | Comparar e trocar modelos copiados, arquivo a arquivo. |
 | `validate [--json]` | Validar `tia/demandas.yaml`. |
 | `ledger sync` · `ledger status [--json]` · `ledger show ID` | Ler o estado. |
@@ -342,7 +390,8 @@ Todos via `TIA <script> ...`. Os que registram gate exigem a resposta literal da
 | `metricas ativar --arquivo … --nota …` | M1. |
 | `metricas ativos [--json]` · `metricas avaliar --monitor M-NNN --valor N [--fonte … --consulta …]` | Leituras devidas dos monitores. |
 | `metricas alertas [--dias N]` · `metricas resumo [--dias N]` · `metricas encerrar --monitor … --nota …` · `metricas validar` | Alertas, resumo, encerrar e validar monitores. |
-| `okr validar [ARQUIVO]` · `okr listar [--ativos]` | Avaliar e listar OKRs. |
+| `okr validar [ARQUIVO] [--grupo ARQUIVO]` · `okr listar [--ativos] [--nivel grupo\|time]` | Avaliar e listar OKRs; `--grupo` confere o alinhamento com os ids do grupo. |
+| `portfolio validar` · `portfolio agregar --entrada JSON [--janela N --parado N --gravar]` · `portfolio ultimo [--resumo\|--tabela\|--executivo]` | Só GPM: times do portfólio, agregação do resultado JQL por time (sem pessoas) e o último retrato para a abertura, o semanal e a diretoria. |
 | `memoria listar` · `memoria gravar --escopo time\|pessoal\|global --nome … --descricao … --aprendi … --evidencia … --nota …` · `memoria revogar --nome … --motivo … --nota …` | Memória. Gravar e revogar só com o sim. |
 | `report [--json]` · `digest` | Resumo da entrega; digest rolante depois do aceite. |
 | `ajuda [--json]` | Lista de comandos. |
