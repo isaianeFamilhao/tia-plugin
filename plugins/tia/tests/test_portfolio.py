@@ -181,3 +181,30 @@ def test_roteiro_consulta_so_leitura_sem_pessoas():
     assert "perfil: gpm" in texto and "e pare" in texto
     for proibido in ("createJira", "editJira", "transitionJira", "addComment"):
         assert proibido not in texto
+
+
+# ------------------------------------------------------------------ item 9: abertura do GPM
+def test_abertura_tem_ramo_gpm_na_ordem_do_plano():
+    texto = (_common.CODE_ROOT / "skills" / "abrir" / "SKILL.md").read_text(encoding="utf-8")
+    ramo = texto[texto.index("### Perfil GPM"):texto.index("## Pedidos em linguagem natural")]
+    fmt = ramo[ramo.index("**Formato do briefing GPM**"):]
+    assert fmt.index("**alertas**") < fmt.index("**times com travas**") < fmt.index("**OKRs do grupo em risco**")
+    assert "portfolio ultimo --resumo" in ramo and "okr listar --ativos" in ramo
+    assert "passo 5 (fila) não existe" in ramo
+    pm = texto[texto.index("## Abertura"):texto.index("### Perfil GPM")]
+    assert "alertas primeiro (crítico > alerta), depois o que espera decisão" in pm      # PM igual
+
+
+def test_ultimo_resumo_para_a_abertura(gpm, capsys):
+    assert portfolio.main(["--root", str(gpm), "ultimo", "--resumo"]) == 0
+    assert "Nenhum retrato" in capsys.readouterr().out
+    portfolio.main(["--root", str(gpm), "agregar", "--entrada", str(FIXTURE), "--hoje", "2026-11-16", "--gravar"])
+    capsys.readouterr()
+    assert portfolio.main(["--root", str(gpm), "ultimo", "--resumo", "--hoje", "2026-11-16"]) == 0
+    out = capsys.readouterr().out
+    assert "de 2026-11-16 (hoje)" in out
+    assert "- Cadastro: 2 travado(s) de 3 em andamento" in out and "CAD-3 sinalizado" in out
+    assert "- Pagamentos: 2 travado(s)" in out and "PLAT-7" in out
+    assert not [p for p in PESSOAS if p in out]
+    portfolio.main(["--root", str(gpm), "ultimo", "--resumo", "--hoje", "2026-11-18"])
+    assert "há 2 dia(s): rode a coleta" in capsys.readouterr().out

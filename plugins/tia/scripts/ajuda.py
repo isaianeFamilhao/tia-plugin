@@ -19,7 +19,7 @@ from _common import NOME_PERFIL, PERFIL_PADRAO, PERFIS, habilidade_disponivel  #
 # Gates e scripts da fila de demandas: só no perfil PM (a habilidade `demanda` é só do PM).
 SO_PM = {"G1", "G2", "G3", "ledger status", "coverage D-NNN"}
 # Scripts do portfólio: só no perfil GPM.
-SO_GPM = {"portfolio validar|agregar"}
+SO_GPM = {"portfolio validar|agregar|ultimo"}
 
 # Ordem de uso no dia a dia; skill nova que não estiver aqui entra no fim, em ordem alfabética.
 ORDER = ("abrir", "demanda", "portfolio", "metricas", "okr", "report", "base", "confluence", "configurar", "ajuda")
@@ -72,7 +72,7 @@ SCRIPTS = [
     ("memoria listar|contexto", "O que a Tia aprendeu (time, pessoal, global) e o que entra no início da sessão"),
     ("aliases --listar", "Atalhos \"Tia, …\" do plugin e do seu pessoal.md"),
     ("coverage D-NNN", "Avaliador: matriz regra × critério da entrega"),
-    ("portfolio validar|agregar", "Times do grupo e agregação do Jira por time, sem pessoas"),
+    ("portfolio validar|agregar|ultimo", "Times do grupo, agregação do Jira por time (sem pessoas) e último retrato"),
     ("report", "Relatório de demandas, cobertura e consumo"),
     ("doctor", "Diagnóstico: Python, Git Bash, ambiente do plugin, workspace, modelos, Base e fila"),
 ]

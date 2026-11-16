@@ -3,6 +3,7 @@
     tia.sh portfolio validar [--json]       # confere portfolio.times do .tia/config.yaml
     tia.sh portfolio agregar --entrada <resultado-jql.json> [--entrada …] [--janela 7] [--parado 5] [--json]
                              [--gravar]     # grava tia/relatorios/<data>-portfolio.json (já sem pessoas)
+    tia.sh portfolio ultimo [--resumo] [--json]   # último retrato gravado (a abertura do GPM usa o resumo)
 
 `portfolio.times` (perfil GPM): lista de times, cada um com `nome`, `jira_projeto` (chave do projeto) e, se
 quiser, `board` (id do quadro). Sem pessoas na config: o portfólio é por time, nunca por responsável.
@@ -233,6 +234,38 @@ def render(rep: dict) -> str:
     return "\n".join(out)
 
 
+def ultimo(root: Path) -> tuple[Path | None, dict | None]:
+    """Último `tia/relatorios/<data>-portfolio.json` (pela data no nome)."""
+    from _common import P, read_json
+
+    arqs = sorted(P(root, "relatorios").glob("????-??-??-portfolio.json"))
+    if not arqs:
+        return None, None
+    return arqs[-1], read_json(arqs[-1])
+
+
+def resumo(rep: dict, hoje: str | None = None) -> str:
+    """Abertura do GPM: uma linha por time com trava; o resto numa linha só."""
+    from datetime import date
+
+    d0 = date.fromisoformat(hoje) if hoje else date.today()
+    idade = (d0 - date.fromisoformat(rep["gerado_em"])).days
+    out = [f"Retrato do portfólio de {rep['gerado_em']}" + (" (hoje)" if idade == 0 else f" (há {idade} dia(s): "
+                                                             "rode a coleta da /tia:portfolio)")]
+    ok = []
+    for t in rep.get("times") or []:
+        if t["travados"]:
+            motivos = "; ".join(f"{tr['key']} {', '.join(tr['motivos'])}" for tr in t["travados"][:3])
+            mais = f" (+{len(t['travados']) - 3})" if len(t["travados"]) > 3 else ""
+            out.append(f"- {t['nome']}: {len(t['travados'])} travado(s) de {t['total_em_andamento']} em andamento"
+                       f" · {motivos}{mais}")
+        else:
+            ok.append(t["nome"])
+    if ok:
+        out.append(f"- Sem travas: {', '.join(ok)}")
+    return "\n".join(out)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", type=Path, default=None)
@@ -246,8 +279,22 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--hoje", help=argparse.SUPPRESS)
     s.add_argument("--json", action="store_true")
     s.add_argument("--gravar", action="store_true", help="grava tia/relatorios/<data>-portfolio.json")
+    s = sub.add_parser("ultimo")
+    s.add_argument("--resumo", action="store_true")
+    s.add_argument("--json", action="store_true")
+    s.add_argument("--hoje", help=argparse.SUPPRESS)
     a = ap.parse_args(argv)
     root = a.root or DATA_ROOT
+    if a.cmd == "ultimo":
+        arq, rep = ultimo(root)
+        if not rep:
+            print("Nenhum retrato do portfólio ainda: rode /tia:portfolio.")
+            return 0
+        if a.json:
+            print(json.dumps(rep, ensure_ascii=False, indent=2))
+        else:
+            print(resumo(rep, a.hoje) if a.resumo else render(rep))
+        return 0
     if a.cmd == "agregar":
         cfg = load_config(root)
         val = validar_times(cfg)
