@@ -11,7 +11,7 @@
     {
       "name": "tia",
       "source": "./plugins/tia",
-      "description": "Tia: transforma pedidos em épicos e histórias com critérios que cobrem as regras de negócio e acompanha nos dados se a entrega moveu as métricas.",
+      "description": "Tia, harness de produto para a gestão de um squad: fila de demandas com gates humanos, Base de Conhecimento com fonte, épicos e histórias com critérios que cobrem as regras de negócio, métricas, OKRs e monitoramento nos dados.",
       "version": "0.2.0"
     }
   ]
