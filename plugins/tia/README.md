@@ -5,11 +5,23 @@ agentes (LLMs) que trabalham num projeto com a Tia.
 
 ## O que é e para quem
 
-A **Tia** é um **harness de produto**: uma assistente de produto para Product Managers que usam o Claude Code,
-cercada de regras que o modelo não consegue ignorar. Ela transforma um pedido em
-**épico e histórias prontos para o time**, com critérios de aceite que cobrem as regras de negócio, cada regra
-com a fonte de onde veio. Mantém uma **Base de Conhecimento** do time, pede **aprovação humana** (gates) antes de
-qualquer decisão ou publicação e **acompanha nos dados** se a entrega moveu as métricas.
+A **Tia** é um **harness de produto** para a gestão de um squad. Dá à Product Manager uma estrutura de trabalho
+dentro do Claude Code: uma fila de demandas com estado, uma Base de Conhecimento com fonte, decisões que só
+avançam com aprovação humana, métricas acompanhadas nos dados e uma memória de como o time e a PM trabalham. O
+modelo faz o trabalho pesado; o harness garante método, fonte, rastro e aprovação.
+
+O resultado é um squad que decide com base no que está escrito e no que os dados mostram, não no que alguém
+lembra. Épicos e histórias são uma das entregas, não o todo.
+
+| Frente da gestão | O que a Tia mantém | Onde |
+|---|---|---|
+| Fila e ritmo | Demandas com ciclo de vida (aprovar, executar, aceitar, publicar) e abertura do dia com o que espera decisão. | `tia/demandas.yaml`, `.tia/ledger.json`, `/tia:abrir` |
+| Conhecimento do time | Regras de negócio com fonte, conflitos, lacunas e apontamentos sobre a documentação. | `tia/kb/`, `/tia:base`, `/tia:confluence` |
+| Refinamento | Épicos e histórias com critérios que cobrem as regras, matriz de cobertura e revisão independente. | `tia/demandas/D-NNN/`, `/tia:demanda` |
+| Outcome | Métricas de outcome com checagem de dados, OKRs e monitoramento com alertas. | `/tia:metricas`, `/tia:okr`, `.tia/monitoramento/` |
+| Acompanhamento | Relatório diário (pulso) e semanal (OKR × entrega), com recomendação de ajuste de rota. | `tia/relatorios/`, `/tia:report` |
+| Documentação | Manutenção do espaço do time no Confluence, só com aprovação por página. | `/tia:confluence` |
+| Memória | O que a PM e o time ensinaram, por escopo, revogável. | `tia/memoria/`, `~/.tia/` |
 
 Ela consulta o Confluence, o Jira e as fontes de dados conectadas na sua conta do Claude. Não escreve nem executa
 código de aplicação.
@@ -20,10 +32,10 @@ Um prompt pede; um harness garante. A Tia não depende de o modelo lembrar das r
 
 | Peça | O que garante |
 |---|---|
-| Skills com roteiro (`/tia:*`) | O mesmo método a cada demanda: pesquisa com fonte, épico no padrão, histórias, cobertura, revisão. |
+| Skills com roteiro (`/tia:*`) | O mesmo método a cada vez: abertura do dia, demanda, Base, métricas, OKR, relatório. |
 | Hooks | Escrita só em `tia/`, Jira e Confluence só com gate, dados só leitura. O que foge disso é negado, e hook com erro nega (fail-closed). |
 | Avaliadores determinísticos | `coverage` reprova a entrega se uma regra relevante ficou sem critério; `kb validar` reprova regra da Base sem fonte; o Stop não deixa a sessão terminar com entrega reprovada. |
-| Registro de estado (`.tia/ledger.json`) | O estado das demandas fica no disco, não na conversa. Retomar é ler o ledger. |
+| Estado em disco (`.tia/ledger.json`, `.tia/monitoramento/`) | Demandas e monitores ficam no disco, não na conversa. Uma sessão nova retoma de onde parou e, versionado no git, o time vê o mesmo estado. |
 | Gates humanos | G1, G2, K1, G3, C1, M1 e Memória só avançam com resposta explícita da PM. |
 
 Origem: a Tia nasceu como harness de produto num workspace (`harness-cowork`) e virou plugin na 0.1.0
