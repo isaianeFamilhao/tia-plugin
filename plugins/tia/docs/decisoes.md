@@ -61,3 +61,17 @@ Tia e os equivalentes são `tia/`, `.tia/` e `TIA_DEV`.
   `.tia/`, Memória global em `~/.tia/`, variáveis `TIA_*` (as `HARNESS_*` e `ADA_*` saem), prefixo `[tia]` e
   repositórios `tia-plugin` e `tia-harness-cowork`. O chamado é "Tia, …" só no início da mensagem; "Ada, …" não
   tem atalho. Nome da Ada só no histórico (CHANGELOG até a 0.1.1 e decisões D-PM-16 a 26).
+- **D-PM-28** (0.3.0) **Dois perfis, um plugin.** A Tia é a copiloto pessoal de quem lidera produto. São dois
+  perfis, PM e GPM, com o mesmo motor e os mesmos princípios, e habilidades por perfil. O perfil é escolhido
+  por pasta (`perfil: pm|gpm` na config do time; sem a chave, vale `pm`). Uma pessoa com os dois papéis tem duas
+  pastas.
+- **D-PM-29** (0.3.0) **Sem integração entre Tias.** A Tia do GPM não acessa a Tia de nenhuma PM (não há
+  intranet). Cada uma vê o portfólio pelas fontes que alcança: Jira, Confluence, fontes de dados e a própria
+  pasta.
+- **D-PM-30** (0.3.0) **O app de WIP é uma fonte de dados.** O painel de WIP (sistema à parte, automação no N8N,
+  ainda não existe) entra como o Databricks: só leitura, consulta agregada, sem dado pessoal, com limite de
+  linhas. A granularidade é dele. A Tia não publica nada no painel; não há gate novo de publicação.
+- **D-PM-31** (0.3.0) **Git local.** Cada pessoa versiona a própria pasta na própria máquina; GitHub só quando
+  houver necessidade (ex.: dois PMs no mesmo time). Recomendar backup da pasta.
+- **D-PM-32** (0.3.0) **Portfólio proposto ou perguntado.** Os times, projetos do Jira e espaços do Confluence do
+  GPM são propostos pela Tia a partir do conector Atlassian ou perguntados à humana. Nada fixado de antemão.
