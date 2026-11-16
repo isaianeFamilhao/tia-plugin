@@ -428,6 +428,7 @@ continuam seus. Sem o plugin, a pasta vira uma pasta comum.
 
 - Histórico: [CHANGELOG.md](CHANGELOG.md).
 - Decisões de desenho: [docs/decisoes.md](docs/decisoes.md).
+- Roteiro do piloto do perfil GPM: [docs/piloto-gpm.md](docs/piloto-gpm.md).
 - Migração de um workspace da Ada (até 0.1.1): veja a entrada 0.2.0 do [CHANGELOG](CHANGELOG.md).
 
 ## Desenvolvimento
