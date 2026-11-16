@@ -36,9 +36,12 @@ USAGE = {
     "ajuda": "/tia:ajuda",
 }
 # No perfil GPM, o report tem o semanal de portfólio e o relatório para a diretoria.
-USAGE_GPM = {"report": "/tia:report diario|semanal|diretoria"}
+USAGE_GPM = {"report": "/tia:report diario|semanal|diretoria", "okr": "/tia:okr <ciclo do grupo | OKR a revisar>"}
 SUMMARY_GPM = {"report": "Diário, semanal de portfólio (times, OKRs do grupo, ajuste de rota) ou relatório para a "
-                         "diretoria (situação, riscos, decisões pedidas)."}
+                         "diretoria (situação, riscos, decisões pedidas).",
+               "abrir": "Abre o dia: alertas de métricas, times com travas e OKRs do grupo em risco; entende \"Tia, …\".",
+               "okr": "OKRs do grupo (nível grupo, objetivos OBJ-NN) com o mesmo método: KRs de X para Y, "
+                      "guardrail e iniciativas à parte."}
 # Resumo curto das skills conhecidas; skill nova usa a 1ª frase da própria descrição.
 SUMMARY = {
     "ajuda": "Esta lista: skills, atalhos, skills de apoio, gates e scripts.",
@@ -157,8 +160,12 @@ def render(root: Path = REPO_ROOT, perfil: str = PERFIL_PADRAO) -> str:
             "- \"Tia, puxa no Looker como foi o funil de cadastro na última semana\" → diagnóstico a partir dos dados.",
             "- \"Tia, quais métricas para a busca com IA?\" → /tia:metricas: o que medir, o que dá para medir hoje e o tracking que falta.",
             "- \"Tia, vou fechar o épico X. O que monitorar?\" → plano de monitoramento para ativar (M1).",
-            "- \"Tia, fecha os OKRs do Q3 do Onboarding\" → /tia:okr: calibragem, objetivo, KRs adaptados ao momento e iniciativas.",
-            "- \"Tia, roda o semanal dos OKRs\" → /tia:report semanal.",
+            *(["- \"Tia, fecha os OKRs do Q3 do Onboarding\" → /tia:okr: calibragem, objetivo, KRs adaptados ao momento e iniciativas.",
+                "- \"Tia, roda o semanal dos OKRs\" → /tia:report semanal."] if perfil == "pm" else
+              ["- \"Tia, como estão os times?\" → /tia:portfolio: travados, em andamento e entregas por time, sem pessoas.",
+               "- \"Tia, fecha os OKRs do grupo para o Q1\" → /tia:okr: objetivos do grupo (OBJ-NN) e KRs.",
+               "- \"Tia, roda o semanal\" → /tia:report semanal: semanal de portfólio.",
+               "- \"Tia, prepara o relatório para a diretoria\" → /tia:report diretoria (não envia nem publica)."]),
             "- \"Tia, o que você sabe sobre mim?\" → Memória.",
             "", "Pergunta rápida de produto (\"qual a regra de X?\") não precisa de comando: responda direto, com fonte."]
     return "\n".join(out)

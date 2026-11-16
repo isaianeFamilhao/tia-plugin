@@ -103,6 +103,19 @@ def test_ajuda_lista_so_as_do_perfil():
     assert "**G1**" in ajuda.render(_common.CODE_ROOT, "pm")
 
 
+def test_ajuda_gpm_descreve_o_gpm():
+    """Abertura e OKR na ajuda do GPM falam do grupo, não da fila (coerente com o README)."""
+    import ajuda
+
+    gpm = {s["nome"]: s for s in ajuda.skills(_common.CODE_ROOT, "gpm")}
+    assert "fila" not in gpm["abrir"]["descricao"] and "times com travas" in gpm["abrir"]["descricao"]
+    assert "grupo" in gpm["okr"]["descricao"] and "grupo" in gpm["okr"]["uso"]
+    texto = ajuda.render(_common.CODE_ROOT, "gpm")
+    assert "/tia:portfolio:" in texto and "/tia:report diretoria" in texto
+    pm = {s["nome"]: s for s in ajuda.skills(_common.CODE_ROOT, "pm")}
+    assert "fila" in pm["abrir"]["descricao"] and "portfolio" not in ajuda.render(_common.CODE_ROOT, "pm")
+
+
 def test_ajuda_le_o_perfil_da_pasta(proj, monkeypatch, capsys):
     import ajuda
 
