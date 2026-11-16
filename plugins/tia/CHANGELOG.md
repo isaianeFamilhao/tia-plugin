@@ -1,5 +1,69 @@
 # Changelog
 
+## 0.3.0 · 2026-11-16
+
+A Tia passa a ter dois perfis, **PM** e **GPM**, com o mesmo motor e os mesmos princípios (D-PM-28 a D-PM-32).
+Compatível com a 0.2.0: pasta sem a chave `perfil` continua PM e nada muda para ela.
+
+**Perfis (Fase 1)**
+
+- Chave `perfil: pm|gpm` em `.tia/config.yaml` (do time; sem a chave, `pm`). Valor inválido é `FALHA` no `doctor`.
+- Princípios neutros: copiloto pessoal de quem lidera produto (PM ou GPM); "a humana" nas regras gerais. Gates e
+  regras fixas iguais; o resumo injetado segue abaixo de 9.000 caracteres.
+- Habilidades por perfil (tabela `HABILIDADES` no plugin): `demanda` só no PM, `portfolio` só no GPM, as demais
+  nos dois. `/tia:ajuda` e os atalhos "Tia, …" só mostram e encaminham as do perfil; habilidade do outro perfil
+  responde em uma linha.
+- Fila só no PM: `ledger iniciar` e `/tia:demanda` recusam numa pasta GPM; o `doctor` não cobra fila no GPM.
+- `/tia:configurar` pergunta o perfil. No GPM: vários projetos do Jira, zero ou um espaço `manter`, sem fila
+  (sem `tia/demandas.yaml` nem `tia/demandas/`) e `CLAUDE.md` próprio (modelo `CLAUDE.gpm.md`).
+
+**Portfólio do GPM, só com o Jira (Fase 2)**
+
+- `portfolio.times: [{nome, jira_projeto, board?}]` na config do GPM, proposto no configurar
+  (`--portfolio "Nome|CHAVE|board"`). `portfolio validar` e o `doctor` acusam time sem projeto e projeto repetido.
+- `portfolio agregar`: resultado das consultas JQL → por time, em andamento por etapa, travados (sinalizados,
+  bloqueados ou sem movimento há `--parado` dias, padrão 5) e concluídos na janela (`--janela`, padrão 7). Lista
+  fechada de campos; responsável e qualquer campo de pessoa são descartados antes de gravar.
+- `/tia:portfolio [janela] [time]` (só GPM): JQL só leitura por time → agregação → situação por time com causa
+  provável e próximo passo, em `tia/relatorios/<data>-portfolio.md` (o retrato agregado fica em `.json` ao lado).
+- Abertura do GPM: alertas, times com travas e OKRs do grupo em risco, nessa ordem, no lugar da fila e das
+  aprovações de demanda.
+
+**OKRs do grupo (Fase 3)**
+
+- OKR com `nivel: grupo|time` (ausente = time) e `id` por objetivo (`OBJ-NN`). O `alinhamento` de um OKR de time
+  cita o id do grupo; id inexistente reprova, texto livre segue valendo com aviso.
+- `/tia:okr` no perfil GPM cria e revisa os OKRs do grupo com o mesmo método.
+
+**Relatórios do GPM (Fase 4)**
+
+- `/tia:report semanal` no GPM é o semanal de portfólio: tabela por time (WIP, travas, entregas, situação), OKRs
+  do grupo e até 3 recomendações com evidência e trade-off.
+- `/tia:report diretoria` (só GPM): formato executivo curto (situação, riscos, decisões pedidas) em
+  `tia/relatorios/<data>-diretoria.md`. Nada é enviado nem publicado sem pedido; publicar é documento ou o
+  espaço `manter` com C1.
+
+**Desvios em relação ao plano**
+
+- Comandos que o plano não previa: `portfolio ultimo --resumo` (abertura), `--tabela` (semanal) e `--executivo`
+  (diretoria), que leem o último retrato gravado; `okr validar --grupo ARQUIVO`, para conferir na pasta de um
+  time os ids do grupo; `okr listar --nivel grupo|time`.
+- A abertura do GPM lê só os OKRs de nível grupo; OKR de time não entra no briefing.
+- No GPM, `configurar criar` aceita `--jira` opcional (padrão: os projetos dos times do portfólio).
+- `/tia:report diretoria` numa pasta PM responde em uma linha; o diário e o semanal do PM não mudaram.
+- A consolidação dos OKRs dos times no GPM ficou de fora (depende de decisão pendente, abaixo).
+
+**Adiado: Fase 5 (app de WIP).** O painel de WIP ainda não existe e não se sabe se terá MCP ou API. Nesta versão
+o portfólio usa só o Jira. Quando o app existir, entra como fonte de dados (D-PM-30): só leitura, agregado, sem
+dado pessoal.
+
+**Pendentes (sem decisão)**
+
+- De onde vêm os OKRs dos times para o GPM consolidar (app, Confluence ou o GPM informa a cada ciclo).
+- Como a Tia acessa o app de WIP (MCP ou API) quando ele existir.
+- WIP de produto de cada PM não aparece para o GPM: depende do app, e demanda que não foi publicada no Jira não
+  aparece no portfólio (limite conhecido).
+
 ## 0.2.0 · 2026-11-14
 
 A assistente passa a se chamar **Tia** (D-PM-27). Quebra compatibilidade: as entradas abaixo desta versão
