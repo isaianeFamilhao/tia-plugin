@@ -191,7 +191,9 @@ def _conteudo(out: list[dict], root: Path) -> None:
     else:
         out.append(check("OK", "kb", f"Base de Conhecimento: {rep['regras']} regras, {rep['fontes']} fontes"))
     dpath = P(root, "fila")
-    if dpath.exists():
+    if perfil_bruto(cfg) == "gpm" and not dpath.exists():
+        pass                                                      # perfil GPM não tem fila de demandas
+    elif dpath.exists():
         vr = validate.validate(dpath, root)
         out.append(check("OK" if vr["ok"] else "FALHA", "demandas",
                          f"fila: {len(vr['demandas'])} demanda(s), {len(vr['erros'])} erro(s), {len(vr['avisos'])} aviso(s)",

@@ -146,3 +146,33 @@ def test_gpm_mantem_as_outras_habilidades(proj):
     assert "tia:abrir" in ctx
     ctx = hooks.run("session_start", {"session_id": "s1"})["hookSpecificOutput"]["additionalContext"]
     assert "Perfil desta pasta: GPM" in ctx and len(ctx) <= hooks.TETO_CONTEXTO
+
+
+# ------------------------------------------------------------------ item 4: fila só no perfil PM
+def test_ledger_iniciar_recusa_no_gpm(proj, entrega):
+    import ledger
+
+    led = ledger.Ledger(proj)
+    led.sync()
+    led.g1("D-001", True, "ok")
+    com_perfil(proj, "gpm")
+    with pytest.raises(ledger.LedgerError, match="perfil PM; esta pasta é do perfil GPM"):
+        ledger.Ledger(proj).iniciar("D-001", "sessao-123")
+    assert ledger.Ledger(proj).get("D-001")["state"] == "approved"            # nada mudou no disco
+    assert ledger.main(["--root", str(proj), "iniciar", "D-001", "--session-id", "sessao-123"]) == 1
+    com_perfil(proj, "pm")
+    ledger.Ledger(proj).iniciar("D-001", "sessao-123")
+    assert ledger.Ledger(proj).get("D-001")["state"] == "running"
+
+
+def test_skill_demanda_recusa_no_gpm():
+    texto = (_common.CODE_ROOT / "skills" / "demanda" / "SKILL.md").read_text(encoding="utf-8")
+    assert "perfil: gpm" in texto and "e pare" in texto
+
+
+def test_doctor_gpm_sem_fila_nao_avisa(proj, monkeypatch):
+    monkeypatch.setattr(doctor, "venv_python", lambda data: None)
+    (proj / "tia" / "demandas.yaml").unlink()
+    assert por_nome(doctor.run_checks(proj))["demandas"]["nivel"] == "AVISO"   # PM sem fila: avisa, como antes
+    com_perfil(proj, "gpm")
+    assert "demandas" not in por_nome(doctor.run_checks(proj))

@@ -6,6 +6,8 @@ description: Executa UMA demanda de produto já aprovada no G1 — pesquisa no C
 # /tia:demanda $ARGUMENTS
 
 Você é a PM sênior executando `$ARGUMENTS`. Pasta: `tia/demandas/$ARGUMENTS/`. `TIA` = `bash "${CLAUDE_PLUGIN_ROOT}/scripts/tia.sh"`.
+Perfil: só PM. Se `.tia/config.yaml` tiver `perfil: gpm`, responda só "Épico, histórias e fila de demandas são
+do perfil PM; esta pasta é do perfil GPM. Isso fica na pasta da PM do time." e pare (o `ledger iniciar` também recusa).
 Pré-condição: `TIA ledger show $ARGUMENTS` em `running`. Se não estiver, volte ao `/tia:abrir`.
 Retomada: veja quais artefatos já existem e continue do primeiro que falta.
 

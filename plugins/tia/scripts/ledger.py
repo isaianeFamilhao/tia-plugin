@@ -153,6 +153,11 @@ class Ledger:
         self.save()
 
     def iniciar(self, did: str, session_id: str) -> None:
+        from _common import aviso_fora_do_perfil, habilidade_disponivel, perfil
+
+        pf = perfil(self.root)
+        if not habilidade_disponivel("demanda", pf):
+            raise LedgerError(aviso_fora_do_perfil("demanda", pf))
         d = self.get(did)
         other = self.active()
         if other and other != did:

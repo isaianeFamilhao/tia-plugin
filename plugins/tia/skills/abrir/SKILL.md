@@ -83,7 +83,7 @@ Rode em sequência, sem pedir licença (tudo é leitura), e entregue **um briefi
    conectada: rode a `consulta` (só leitura, agregada, sem dado pessoal, com limite de linhas) e registre
    `TIA metricas avaliar --monitor M-NNN --valor <n> --fonte <f> --consulta "<resumo>"`. Fonte indisponível →
    "não checado: <fonte> desconectada". Depois `TIA metricas alertas`. Janela encerrada → proponha encerrar.
-5. **Fila e gates:** `TIA ledger sync`, `TIA ledger status --json` e `TIA validate --json`. Demanda `running`
+5. **Fila e gates** (só no perfil PM; no GPM não há fila, pule este passo): `TIA ledger sync`, `TIA ledger status --json` e `TIA validate --json`. Demanda `running`
    desta sessão → siga em `/tia:demanda`; de outra sessão → `coletar` se houver `result.json`, senão pergunte.
 6. **Apontamentos:** `TIA kb apontamentos --abertos` (só a contagem e o mais antigo).
 
