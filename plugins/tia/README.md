@@ -1,6 +1,6 @@
 # Tia · plugin do Claude Code
 
-Referência completa do plugin `tia@tia-marketplace` (versão 0.2.0). Vale para quem instala, para quem usa e para
+Referência completa do plugin `tia@tia-marketplace` (versão 0.3.0). Vale para quem instala, para quem usa e para
 agentes (LLMs) que trabalham num projeto com a Tia.
 
 ## O que é e para quem
@@ -126,13 +126,13 @@ O `/tia:abrir` já roda o diagnóstico. Para rodar à mão, use o lançador do p
 Git Bash, macOS ou Linux:
 
 ```bash
-bash ~/.claude/plugins/cache/tia-marketplace/tia/0.2.0/scripts/tia.sh doctor
+bash ~/.claude/plugins/cache/tia-marketplace/tia/0.3.0/scripts/tia.sh doctor
 ```
 
 PowerShell (chame o `bash` do Git; o `bash` do PATH pode ser o do WSL):
 
 ```powershell
-& "C:\Program Files\Git\bin\bash.exe" "$HOME\.claude\plugins\cache\tia-marketplace\tia\0.2.0\scripts\tia.sh" doctor
+& "C:\Program Files\Git\bin\bash.exe" "$HOME\.claude\plugins\cache\tia-marketplace\tia\0.3.0\scripts\tia.sh" doctor
 ```
 
 As mensagens de erro da Tia já trazem esses dois comandos prontos, com o caminho certo do plugin.

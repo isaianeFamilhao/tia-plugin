@@ -1,6 +1,6 @@
 {
   "name": "tia",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Tia, harness de produto para a gestão de um squad: fila de demandas com gates humanos, Base de Conhecimento com fonte, épicos e histórias com critérios que cobrem as regras de negócio, métricas, OKRs e monitoramento nos dados.",
   "author": {
     "name": "Time de Produto"

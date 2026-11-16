@@ -53,4 +53,4 @@ vai para o git junto com o projeto.
 plugins/tia/                      o plugin: skills, scripts, hooks, modelos, testes
 ```
 
-Versão atual: 0.2.0. Uso interno do Time de Produto, sem licença por ora.
+Versão atual: 0.3.0. Uso interno do Time de Produto, sem licença por ora.
